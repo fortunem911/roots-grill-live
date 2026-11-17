@@ -72,7 +72,7 @@
         next.forEach(function(item) {
           var slide = document.createElement('article'); slide.className = 'slide'; slide.hidden = true;
           var media = document.createElement(isVideo(item) ? 'video' : 'img');
-          media.src = item.url; if (media.tagName === 'VIDEO') { media.muted = true; media.playsInline = true; media.preload = 'metadata'; }
+          media.src = item.url; if (media.tagName === 'VIDEO') { media.muted = true; media.playsInline = true; media.loop = true; media.preload = 'metadata'; }
           else media.alt = item.originalName || 'Roots Grill artwork';
           slide.appendChild(media); stage.appendChild(slide);
         });
