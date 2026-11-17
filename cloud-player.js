@@ -11,6 +11,39 @@
   var signature = '', currentIndex = -1, currentVideo = null;
   var items = [];
   var refreshing = false, portraitLoadToken = 0;
+  // Detect slow video decoding per screen. Never degrade image quality.
+  var liteMode = false, videoFailures = 0, healthyStarts = 0;
+  var videoStartTimer = null, activeVideoToken = 0;
+  function recordVideoProblem(reason) {
+    if (portrait) return;
+    videoFailures++; healthyStarts = 0;
+    if (!liteMode && videoFailures >= 2) {
+      liteMode = true;
+      console.warn('Roots Grill: automatic video Lite Mode enabled (' + reason + ')');
+    }
+  }
+  function watchVideo(video) {
+    var token = ++activeVideoToken;
+    if (videoStartTimer) clearTimeout(videoStartTimer);
+    if (!video) return;
+    var started = false;
+    function onPlaying() {
+      if (token !== activeVideoToken || started) return;
+      started = true;
+      if (videoStartTimer) clearTimeout(videoStartTimer);
+      healthyStarts++;
+      if (healthyStarts >= 5) { videoFailures = 0; liteMode = false; }
+    }
+    function onProblem() {
+      if (token !== activeVideoToken || !started) return;
+      recordVideoProblem('video buffering');
+    }
+    video.addEventListener('playing', onPlaying, {once:true});
+    video.addEventListener('stalled', onProblem, {once:true});
+    videoStartTimer = setTimeout(function() {
+      if (token === activeVideoToken && !started) recordVideoProblem('slow video start');
+    }, 3500);
+  }
   function errorMessage(message) {
     if (portrait) { fallback.textContent = message; fallback.style.display = 'grid'; }
     else if (!items.length) stage.innerHTML = '<div class="display-empty"><strong>'+message+'</strong></div>';
@@ -46,16 +79,17 @@
       if (v && !active) { v.pause(); v.currentTime = 0; }
     }
     currentVideo = slides[i] && slides[i].querySelector('video');
+    watchVideo(currentVideo);
     // Keep only the current and next video eager-loaded on low-memory TVs.
     for (var k=0;k<slides.length;k++) {
       var candidate = slides[k].querySelector('video');
-      if (candidate) candidate.preload = (k === i || k === (i+1)%slides.length) ? 'auto' : 'metadata';
+      if (candidate) candidate.preload = liteMode ? (k === i ? 'auto' : 'none') : ((k === i || k === (i+1)%slides.length) ? 'auto' : 'metadata');
     }
     if (currentVideo) {
       currentVideo.muted = true;
       var desiredSeconds = Number.isFinite(Number(slotStartedAt)) ? Math.max(0,(Date.now()-Number(slotStartedAt))/1000) : 0;
       // Seek once when activating a clip, not repeatedly during playback.
-      if (currentVideo.readyState >= 2 && Number.isFinite(currentVideo.duration) && desiredSeconds < currentVideo.duration - 0.5) {
+      if (!liteMode && currentVideo.readyState >= 2 && Number.isFinite(currentVideo.duration) && desiredSeconds < currentVideo.duration - 0.5) {
         try { currentVideo.currentTime = desiredSeconds; } catch (_) {}
       }
       var promise = currentVideo.play(); if (promise && promise.catch) promise.catch(function(){});
