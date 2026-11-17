@@ -10,8 +10,7 @@
   var fallback = document.getElementById('portraitFallback');
   var signature = '', currentIndex = -1, currentVideo = null;
   var items = [];
-  var refreshing = false, portraitLoadToken = 0, imageCache = Object.create(null);
-  var lastSuccessfulRefresh = 0;
+  var refreshing = false, portraitLoadToken = 0;
   function errorMessage(message) {
     if (portrait) { fallback.textContent = message; fallback.style.display = 'grid'; }
     else if (!items.length) stage.innerHTML = '<div class="display-empty"><strong>'+message+'</strong></div>';
@@ -48,6 +47,11 @@
       if (v && !active) { v.pause(); v.currentTime = 0; }
     }
     currentVideo = slides[i] && slides[i].querySelector('video');
+    // Keep only the current and next video eager-loaded on low-memory TVs.
+    for (var k=0;k<slides.length;k++) {
+      var candidate = slides[k].querySelector('video');
+      if (candidate) candidate.preload = (k === i || k === (i+1)%slides.length) ? 'auto' : 'metadata';
+    }
     if (currentVideo) {
       currentVideo.muted = true;
       var desiredSeconds = Number.isFinite(Number(slotStartedAt)) ? Math.max(0,(Date.now()-Number(slotStartedAt))/1000) : 0;
@@ -64,15 +68,11 @@
     if (sig !== signature) {
       signature = sig; items = next; currentIndex = -1; portraitLoadToken++;
       if (!portrait) {
-        imageCache = Object.create(null);
-        next.forEach(function(item) { if (!isVideo(item)) { var pre = new Image(); pre.src = item.url; imageCache[item.url] = pre; } });
-      }
-      if (!portrait) {
         stage.innerHTML = '';
         next.forEach(function(item) {
           var slide = document.createElement('article'); slide.className = 'slide'; slide.hidden = true;
           var media = document.createElement(isVideo(item) ? 'video' : 'img');
-          media.src = item.url; if (media.tagName === 'VIDEO') { media.muted = true; media.playsInline = true; media.preload = 'auto'; }
+          media.src = item.url; if (media.tagName === 'VIDEO') { media.muted = true; media.playsInline = true; media.preload = 'metadata'; }
           else media.alt = item.originalName || 'Roots Grill artwork';
           slide.appendChild(media); stage.appendChild(slide);
         });
@@ -92,7 +92,6 @@
       var response = await fetch(endpoint+'&_='+Date.now(), options);
       if (!response.ok) throw new Error('Display service HTTP '+response.status);
       apply(await response.json());
-      lastSuccessfulRefresh = Date.now();
     } catch (e) { console.warn('Roots Grill display refresh:',e); if (!items.length) errorMessage('Connecting to Roots Grill Cloud…'); }
     finally { if (timeout) clearTimeout(timeout); refreshing = false; }
   }
