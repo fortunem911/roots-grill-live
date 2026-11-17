@@ -64,73 +64,6 @@ async function videoDuration(file) {
     v.onerror = () => done(null); v.src = u;
   });
 }
-// Browser-side single-thread FFmpeg: process videos BEFORE uploading to Supabase.
-// The first load downloads a large WASM encoder. No paid processing server required.
-let encoderPromise = null;
-async function loadEncoder() {
-  if (encoderPromise) return encoderPromise;
-  encoderPromise = (async () => {
-    const version = '0.12.15';
-    const base = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@' + version + '/dist/umd';
-    const core = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd';
-    if (!window.FFmpegWASM) {
-      await new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = base + '/ffmpeg.js';
-        script.onload = resolve;
-        script.onerror = () => reject(new Error('Could not download video encoder. Check your internet connection.'));
-        document.head.appendChild(script);
-      });
-    }
-    async function blobURL(url, mime) {
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Encoder download failed (HTTP ' + response.status + ').');
-      const blob = await response.blob();
-      return URL.createObjectURL(new Blob([blob], {type:mime}));
-    }
-    const workerURL = await blobURL(base + '/814.ffmpeg.js', 'text/javascript');
-    const coreURL = await blobURL(core + '/ffmpeg-core.js', 'text/javascript');
-    const wasmURL = await blobURL(core + '/ffmpeg-core.wasm', 'application/wasm');
-    const ffmpeg = new window.FFmpegWASM.FFmpeg();
-    try {
-      await ffmpeg.load({classWorkerURL:workerURL, coreURL, wasmURL});
-    } finally {
-      URL.revokeObjectURL(workerURL);
-      URL.revokeObjectURL(coreURL);
-      URL.revokeObjectURL(wasmURL);
-    }
-    return ffmpeg;
-  })().catch(error => { encoderPromise = null; throw error; });
-  return encoderPromise;
-}
-async function optimizeVideo(file, report) {
-  report('Preparing TV-friendly video encoder (first use may take a minute)…');
-  const ffmpeg = await loadEncoder();
-  const id = crypto.randomUUID().replace(/-/g,'');
-  const input = 'input-' + id + '.' + (file.name.split('.').pop() || 'mp4').replace(/[^a-z0-9]/gi,'').slice(0,8);
-  const output = 'roots-' + id + '.mp4';
-  try {
-    report('Reading video ' + file.name + '…');
-    await ffmpeg.writeFile(input, new Uint8Array(await file.arrayBuffer()));
-    report('Trimming and compressing ' + file.name + ' to 10 seconds / 720p…');
-    const code = await ffmpeg.exec([
-      '-i',input,'-t','10','-map','0:v:0','-an',
-      '-vf','scale=w=1280:h=720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:color=black,fps=25,format=yuv420p',
-      '-c:v','libx264','-preset','ultrafast','-crf','28',
-      '-profile:v','baseline','-level','3.1',
-      '-g','50','-movflags','+faststart','-y',output
-    ]);
-    if (code !== 0) throw new Error('Video encoding failed. Try an MP4/H.264 source.');
-    const bytes = await ffmpeg.readFile(output);
-    if (!bytes || !bytes.length) throw new Error('Encoder produced an empty video.');
-    const result = new File([bytes],file.name.replace(/\.[^.]+$/,'')+'-tv.mp4',{type:'video/mp4'});
-    if (result.size > 50*1024*1024) throw new Error('Compressed video still exceeds 50 MB.');
-    return result;
-  } finally {
-    try { await ffmpeg.deleteFile(input); } catch (_) {}
-    try { await ffmpeg.deleteFile(output); } catch (_) {}
-  }
-}
 async function orientation(file) {
   if (!file.type.startsWith('image/')) return 'landscape';
   return new Promise(resolve => {
@@ -165,17 +98,14 @@ uploadForm.addEventListener('submit', async e => {
   try {
     for (const file of files) {
       if (!/^(image|video)\//.test(file.type)) throw new Error('Unsupported file: '+file.name);
-      const video = file.type.startsWith('video/');
-      // Never upload the unoptimized source if video processing fails.
-      const prepared = video ? await optimizeVideo(file, message => { uploadStatus.textContent = message; }) : file;
-      if (prepared.size > 50 * 1024 * 1024) throw new Error(prepared.name+' exceeds the current 50 MB storage limit.');
-      uploadStatus.textContent = 'Uploading optimized '+prepared.name+' ('+(uploaded+1)+'/'+files.length+')…';
-      const id = crypto.randomUUID(), display = await orientation(prepared), durationMs = video ? 10000 : null;
-      const path = display+'/'+id+'-'+prepared.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-      const {error: uploadError} = await db.storage.from(BUCKET).upload(path,prepared,{contentType:prepared.type,upsert:false});
+      if (file.size > 50 * 1024 * 1024) throw new Error(file.name+' exceeds the current 50 MB storage limit.');
+      uploadStatus.textContent = 'Uploading '+file.name+' ('+(uploaded+1)+'/'+files.length+')…';
+      const id = crypto.randomUUID(), display = await orientation(file), durationMs = await videoDuration(file);
+      const path = display+'/'+id+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+      const {error: uploadError} = await db.storage.from(BUCKET).upload(path,file,{contentType:file.type,upsert:false});
       if (uploadError) throw uploadError;
       const url = db.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
-      const payload = {id,filename:path.split('/').pop(),originalName:file.name,mimeType:prepared.type,url,display,uploadedAt:new Date().toISOString(),durationMs};
+      const payload = {id,filename:path.split('/').pop(),originalName:file.name,mimeType:file.type,url,display,uploadedAt:new Date().toISOString(),durationMs};
       const {error: insertError} = await db.from('media_items').insert({id,storage_path:path,payload});
       if (insertError) { await db.storage.from(BUCKET).remove([path]); throw insertError; }
       uploaded++;
@@ -183,7 +113,7 @@ uploadForm.addEventListener('submit', async e => {
     uploadStatus.style.color = '#79d69b';
     uploadStatus.textContent = uploaded+' file(s) uploaded successfully.';
     mediaInput.value = ''; el('selectionText').textContent = 'No files selected.'; await loadMedia();
-  } catch (err) { uploadStatus.style.color = ''; uploadStatus.textContent = 'Uploaded '+uploaded+' of '+files.length+'. '+err.message; }
+  } catch (err) { uploadStatus.style.color = ''; uploadStatus.textContent = 'Uploaded '+uploaded+' of '+files.length+'. '+(err && err.message ? err.message : String(err)); }
   finally { uploadButton.disabled = false; uploadProgress.hidden = true; }
 });
 (async () => {
