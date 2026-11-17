@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="color-scheme" content="dark" />
+  <title>Roots Grill Control Centre</title>
+
+  <style>
+    :root {
+      --roots-red: #d71920;
+      --roots-red-dark: #9e1016;
+      --roots-red-soft: rgba(215, 25, 32, 0.12);
+      --bg: #08090b;
+      --panel: #111318;
+      --panel-soft: #171a20;
+      --line: rgba(255,255,255,.08);
+      --text: #f7f7f7;
+      --muted: #9299a5;
+      --success: #42d67d;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 0%, rgba(215,25,32,.16), transparent 28%),
+        linear-gradient(135deg, #070809, #0e1014 50%, #08090b);
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    button,
+    input {
+      font: inherit;
+    }
+
+    button,
+    a {
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    a {
+      color: inherit;
+    }
+
+    .kicker {
+      margin: 0 0 .55rem;
+      color: var(--roots-red);
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .17em;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .login-view {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(420px, .9fr);
+    }
+
+    .login-visual {
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: clamp(2rem, 6vw, 5.5rem);
+      background:
+        linear-gradient(140deg, rgba(215,25,32,.94), rgba(133,8,14,.97)),
+        #b30f16;
+    }
+
+    .login-visual::before,
+    .login-visual::after {
+      content: "";
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.14);
+    }
+
+    .login-visual::before {
+      width: 620px;
+      height: 620px;
+      right: -230px;
+      top: -190px;
+    }
+
+    .login-visual::after {
+      width: 390px;
+      height: 390px;
+      right: -95px;
+      bottom: -185px;
+    }
+
+    .brand-mark {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      place-items: center;
+      width: 72px;
+      height: 72px;
+      border-radius: 22px;
+      background: #fff;
+      color: var(--roots-red);
+      font-weight: 950;
+      font-size: 1.35rem;
+      box-shadow: 0 18px 45px rgba(0,0,0,.22);
+    }
+
+    .brand-mark.small {
+      width: 46px;
+      height: 46px;
+      border-radius: 14px;
+      font-size: .92rem;
+    }
+
+    .login-visual h1 {
+      position: relative;
+      z-index: 1;
+      max-width: 700px;
+      margin: 0 0 1.2rem;
+      font-size: clamp(3rem, 7vw, 6.4rem);
+      line-height: .92;
+      letter-spacing: -.065em;
+    }
+
+    .login-copy {
+      position: relative;
+      z-index: 1;
+      max-width: 550px;
+      margin: 0;
+      color: rgba(255,255,255,.78);
+      font-size: clamp(1rem, 2vw, 1.25rem);
+    }
+
+    .login-visual .kicker {
+      color: rgba(255,255,255,.76);
+    }
+
+    .visual-status {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      font-size: .9rem;
+      color: rgba(255,255,255,.8);
+    }
+
+    .visual-status span {
+      width: .7rem;
+      height: .7rem;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 0 0 7px rgba(255,255,255,.12);
+    }
+
+    .login-panel {
+      display: grid;
+      place-items: center;
+      padding: 2rem;
+    }
+
+    .login-card {
+      width: min(430px, 100%);
+      padding: clamp(1.5rem, 4vw, 2.5rem);
+      border: 1px solid var(--line);
+      border-radius: 28px;
+      background: rgba(17,19,24,.88);
+      box-shadow: 0 28px 80px rgba(0,0,0,.38);
+      backdrop-filter: blur(20px);
+    }
+
+    .mobile-brand {
+      display: none;
+    }
+
+    .login-card h2 {
+      margin: 0 0 .4rem;
+      font-size: 2rem;
+    }
+
+    .login-card > .muted {
+      margin: 0 0 1.7rem;
+    }
+
+    .login-card label {
+      display: block;
+      margin: 1rem 0 .5rem;
+      color: #d8dbe1;
+      font-size: .86rem;
+      font-weight: 700;
+    }
+
+    .login-card input {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.11);
+      border-radius: 14px;
+      padding: .95rem 1rem;
+      background: #0a0c10;
+      color: var(--text);
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .login-card input:focus {
+      border-color: var(--roots-red);
+      box-shadow: 0 0 0 4px var(--roots-red-soft);
+    }
+
+    .password-field {
+      position: relative;
+    }
+
+    .password-field input {
+      padding-right: 5rem;
+    }
+
+    .password-field button {
+      position: absolute;
+      right: .55rem;
+      top: 50%;
+      transform: translateY(-50%);
+      border: 0;
+      border-radius: 10px;
+      padding: .48rem .65rem;
+      background: var(--roots-red-soft);
+      color: #ff9da1;
+      cursor: pointer;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .logout-button {
+      border: 0;
+      border-radius: 13px;
+      cursor: pointer;
+      font-weight: 800;
+      transition: transform .18s, opacity .18s, background .18s;
+    }
+
+    .primary-button {
+      padding: .92rem 1.2rem;
+      background: var(--roots-red);
+      color: #fff;
+      box-shadow: 0 12px 30px rgba(215,25,32,.25);
+    }
+
+    .primary-button:hover,
+    .secondary-button:hover,
+    .logout-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary-button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+
+    .primary-button.full {
+      width: 100%;
+      margin-top: 1.35rem;
+    }
+
+    .form-status {
+      min-height: 1.25rem;
+      margin: .85rem 0 0;
+      color: #ff9da1;
+      font-size: .87rem;
+    }
+
+    .dashboard-view {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 270px minmax(0, 1fr);
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 1.35rem;
+      border-right: 1px solid var(--line);
+      background: rgba(10,11,14,.94);
+      backdrop-filter: blur(20px);
+    }
+
+    .sidebar-brand {
+      display: flex;
+      align-items: center;
+      gap: .85rem;
+      padding: .2rem .15rem 1.5rem;
+    }
+
+    .sidebar-brand strong,
+    .sidebar-brand span {
+      display: block;
+    }
+
+    .sidebar-brand span {
+      margin-top: .15rem;
+      color: var(--muted);
+      font-size: .77rem;
+    }
+
+    .sidebar-nav {
+      display: grid;
+      gap: .35rem;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: .85rem;
+      padding: .86rem .9rem;
+      border-radius: 13px;
+      color: #bec3cc;
+      text-decoration: none;
+      font-weight: 700;
+    }
+
+    .nav-link span {
+      color: var(--roots-red);
+      font-size: .7rem;
+      letter-spacing: .1em;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+      color: #fff;
+      background: var(--roots-red-soft);
+    }
+
+    .sidebar-bottom {
+      display: grid;
+      gap: .55rem;
+      margin-top: auto;
+      padding-top: 1.2rem;
+      border-top: 1px solid var(--line);
+    }
+
+    .sidebar-bottom p {
+      margin: 0 0 .25rem;
+      color: var(--muted);
+      font-size: .72rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-bottom a {
+      padding: .65rem .1rem;
+      color: #c9cdd5;
+      text-decoration: none;
+      font-size: .9rem;
+    }
+
+    .sidebar-bottom a:hover {
+      color: #fff;
+    }
+
+    .logout-button {
+      margin-top: .45rem;
+      padding: .82rem 1rem;
+      background: rgba(255,255,255,.06);
+      color: #fff;
+      text-align: left;
+    }
+
+    .dashboard-main {
+      min-width: 0;
+      padding: clamp(1rem, 3vw, 2.4rem);
+    }
+
+    .dashboard-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.3rem;
+    }
+
+    .dashboard-header h1 {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      letter-spacing: -.04em;
+    }
+
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      padding: .7rem .9rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.035);
+    }
+
+    .user-chip strong,
+    .user-chip small {
+      display: block;
+    }
+
+    .user-chip small {
+      margin-top: .08rem;
+      color: var(--muted);
+      font-size: .7rem;
+    }
+
+    .online-dot {
+      width: .65rem;
+      height: .65rem;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 6px rgba(66,214,125,.12);
+    }
+
+    .section-block {
+      scroll-margin-top: 1rem;
+      padding: clamp(1rem, 2.3vw, 1.7rem);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      background: rgba(17,19,24,.76);
+      box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    }
+
+    .section-block + .section-block {
+      margin-top: 1.25rem;
+    }
+
+    .section-heading-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.2rem;
+    }
+
+    .section-heading-row h2 {
+      margin: 0;
+      font-size: 1.35rem;
+    }
+
+    .section-heading-row .muted {
+      max-width: 760px;
+      margin: .35rem 0 0;
+      font-size: .9rem;
+    }
+
+    .secondary-button {
+      padding: .76rem 1rem;
+      border: 1px solid rgba(215,25,32,.32);
+      background: var(--roots-red-soft);
+      color: #ffb3b6;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .85rem;
+    }
+
+    .stat-card {
+      min-width: 0;
+      padding: 1.15rem;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--panel-soft);
+    }
+
+    .stat-card span,
+    .stat-card small {
+      display: block;
+      color: var(--muted);
+    }
+
+    .stat-card span {
+      font-size: .78rem;
+    }
+
+    .stat-card strong {
+      display: block;
+      margin: .6rem 0 .35rem;
+      color: #fff;
+      font-size: clamp(1.6rem, 4vw, 2.35rem);
+    }
+
+    .stat-card .status-word {
+      color: var(--success);
+      font-size: 1.4rem;
+    }
+
+    .stat-card small {
+      font-size: .72rem;
+    }
+
+    .display-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .9rem;
+      margin-top: .9rem;
+    }
+
+    .display-card {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgba(215,25,32,.11), rgba(255,255,255,.025));
+      color: inherit;
+      text-decoration: none;
+      transition: transform .2s, border-color .2s, background .2s;
+    }
+
+    .display-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(215,25,32,.55);
+      background: linear-gradient(135deg, rgba(215,25,32,.18), rgba(255,255,255,.035));
+    }
+
+    .display-card h3 {
+      margin: .16rem 0 .2rem;
+      font-size: 1rem;
+    }
+
+    .display-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: .78rem;
+    }
+
+    .display-card b {
+      color: var(--roots-red);
+      font-size: 1.25rem;
+    }
+
+    .card-label {
+      color: #ff8b90;
+      font-size: .65rem;
+      font-weight: 850;
+      letter-spacing: .12em;
+    }
+
+    .screen-shape {
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--roots-red);
+      border-radius: 8px;
+      background: #050608;
+      color: #ff969a;
+      font-size: .62rem;
+      font-weight: 800;
+    }
+
+    .landscape-shape {
+      width: 70px;
+      height: 42px;
+    }
+
+    .portrait-shape {
+      width: 40px;
+      height: 70px;
+    }
+
+    .upload-panel {
+      padding: 1rem;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #0d0f13;
+    }
+
+    .drop-zone {
+      min-height: 190px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      gap: .45rem;
+      padding: 1.2rem;
+      border: 1.5px dashed rgba(215,25,32,.5);
+      border-radius: 15px;
+      background: rgba(215,25,32,.045);
+      text-align: center;
+      cursor: pointer;
+      transition: background .2s, border-color .2s;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragging {
+      border-color: var(--roots-red);
+      background: rgba(215,25,32,.09);
+    }
+
+    .drop-zone input {
+      display: none;
+    }
+
+    .drop-zone span {
+      color: var(--muted);
+      font-size: .8rem;
+    }
+
+    .upload-icon {
+      display: grid;
+      place-items: center;
+      width: 47px;
+      height: 47px;
+      margin-bottom: .25rem;
+      border-radius: 14px;
+      background: var(--roots-red);
+      color: #fff;
+      font-size: 1.45rem;
+      box-shadow: 0 10px 25px rgba(215,25,32,.2);
+    }
+
+    .upload-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-top: .9rem;
+    }
+
+    .upload-footer p {
+      min-width: 0;
+      margin: 0;
+      overflow: hidden;
+      color: var(--muted);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: .85rem;
+    }
+
+    .progress-track {
+      height: 7px;
+      margin-top: .9rem;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255,255,255,.07);
+    }
+
+    .progress-track span {
+      display: block;
+      width: 42%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--roots-red);
+      animation: progress 1.1s ease-in-out infinite alternate;
+    }
+
+    @keyframes progress {
+      from { transform: translateX(-20%); }
+      to { transform: translateX(170%); }
+    }
+
+    .filter-group {
+      display: flex;
+      gap: .4rem;
+      padding: .3rem;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: #0b0d10;
+    }
+
+    .filter-button {
+      border: 0;
+      border-radius: 999px;
+      padding: .6rem .8rem;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .filter-button.active,
+    .filter-button:hover {
+      background: var(--roots-red);
+      color: #fff;
+    }
+
+    .media-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: .85rem;
+    }
+
+    .media-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: var(--panel-soft);
+    }
+
+    .media-preview {
+      position: relative;
+      aspect-ratio: 4 / 3;
+      overflow: hidden;
+      background: #050608;
+    }
+
+    .media-preview img,
+    .media-preview video {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+    }
+
+    .display-badge {
+      position: absolute;
+      top: .65rem;
+      left: .65rem;
+      padding: .32rem .55rem;
+      border-radius: 999px;
+      background: rgba(0,0,0,.78);
+      color: #fff;
+      font-size: .62rem;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .display-badge.portrait {
+      background: var(--roots-red);
+    }
+
+    .display-badge.landscape {
+      background: #5e1518;
+    }
+
+    .media-info {
+      padding: .9rem;
+    }
+
+    .media-info strong,
+    .media-info small {
+      display: block;
+    }
+
+    .media-info strong {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .media-info small {
+      margin-top: .25rem;
+      color: var(--muted);
+      font-size: .7rem;
+    }
+
+    .media-actions {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: .75rem;
+    }
+
+    .delete-button {
+      border: 1px solid rgba(215,25,32,.32);
+      border-radius: 10px;
+      padding: .52rem .7rem;
+      background: var(--roots-red-soft);
+      color: #ff9da1;
+      cursor: pointer;
+      font-weight: 750;
+    }
+
+    .delete-button:disabled {
+      opacity: .55;
+      cursor: wait;
+    }
+
+    .empty-state {
+      padding: 2.5rem 1rem;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .empty-state div {
+      color: var(--roots-red);
+      font-size: 2rem;
+    }
+
+    .empty-state h3 {
+      margin: .45rem 0 .25rem;
+      color: #fff;
+    }
+
+    .empty-state p {
+      margin: 0;
+    }
+
+    @media (max-width: 980px) {
+      .login-view {
+        grid-template-columns: 1fr;
+      }
+
+      .login-visual {
+        display: none;
+      }
+
+      .mobile-brand {
+        display: grid;
+        place-items: center;
+        width: 52px;
+        height: 52px;
+        margin-bottom: 1.1rem;
+        border-radius: 15px;
+        background: var(--roots-red);
+        color: #fff;
+        font-weight: 900;
+      }
+
+      .dashboard-view {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+        height: auto;
+        padding: .9rem;
+      }
+
+      .sidebar-nav {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .nav-link {
+        justify-content: center;
+        padding: .75rem .45rem;
+        font-size: .75rem;
+      }
+
+      .nav-link span,
+      .sidebar-bottom p {
+        display: none;
+      }
+
+      .sidebar-bottom {
+        grid-template-columns: repeat(3, 1fr);
+        margin-top: .75rem;
+        padding-top: .75rem;
+      }
+
+      .sidebar-bottom a,
+      .logout-button {
+        margin: 0;
+        padding: .65rem;
+        border-radius: 10px;
+        background: rgba(255,255,255,.04);
+        text-align: center;
+        font-size: .72rem;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .dashboard-header,
+      .section-heading-row,
+      .upload-footer {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .stats-grid,
+      .display-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .filter-group {
+        width: 100%;
+        border-radius: 13px;
+      }
+
+      .filter-button {
+        flex: 1;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .login-panel,
+      .dashboard-main {
+        padding: .8rem;
+      }
+
+      .stats-grid,
+      .display-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar-nav {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar-bottom {
+        grid-template-columns: 1fr;
+      }
+
+      .user-chip {
+        display: none;
+      }
+    }
+  </style>
+
+  <style>
+    /* Cross-browser fallbacks */
+    .login-card,
+    .sidebar {
+      background-color: #111318;
+    }
+
+    @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+      .login-card,
+      .sidebar {
+        -webkit-backdrop-filter: blur(20px);
+        backdrop-filter: blur(20px);
+      }
+    }
+
+    @supports not (position: sticky) {
+      .sidebar {
+        position: relative;
+        height: auto;
+        min-height: 100vh;
+      }
+    }
+
+    button,
+    input,
+    a {
+      touch-action: manipulation;
+    }
+
+    img,
+    video {
+      max-width: 100%;
+    }
+  </style>
+
+</head>
+
+<body>
+  <section id="loginView" class="login-view" aria-labelledby="loginTitle">
+    <div class="login-visual" aria-hidden="true">
+      <div class="brand-mark">RG</div>
+
+      <div>
+        <p class="kicker">ADMIN CONTROL DESK</p>
+        <h1>Roots Grill<br />Control Centre</h1>
+        <p class="login-copy">
+          One dashboard controlling the landscape and portrait menu displays.
+        </p>
+      </div>
+
+      <div class="visual-status">
+        <span></span>
+        Cloud administration
+      </div>
+    </div>
+
+    <div class="login-panel">
+      <form id="loginForm" class="login-card" autocomplete="on">
+        <div class="mobile-brand">RG</div>
+
+        <p class="kicker">SECURE ACCESS</p>
+        <h2 id="loginTitle">Welcome back</h2>
+        <p class="muted">Sign in to manage Roots Grill media.</p>
+
+        <label for="username">Email address</label>
+        <input id="username" name="username" type="email" autocomplete="username" required />
+
+        <label for="password">Password</label>
+        <div class="password-field">
+          <input id="password" name="password" type="password" autocomplete="current-password" required />
+          <button id="togglePassword" type="button" aria-label="Show password">Show</button>
+        </div>
+
+        <button id="loginButton" class="primary-button full" type="submit">Log in</button>
+        <p id="loginStatus" class="form-status" role="alert"></p>
+      </form>
+    </div>
+  </section>
+
+  <div id="dashboardView" class="dashboard-view" hidden>
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-mark small">RG</div>
+        <div>
+          <strong>Roots Grill</strong>
+          <span>Admin Control Desk</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav" aria-label="Dashboard navigation">
+        <a class="nav-link active" href="#overview"><span>01</span>Overview</a>
+        <a class="nav-link" href="#upload"><span>02</span>Upload media</a>
+        <a class="nav-link" href="#library"><span>03</span>Media library</a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <p>Display links</p>
+        <a href="./" target="_blank" rel="noopener">Landscape display · LIVE SYNC ↗</a>
+        <a href="portrait.html" target="_blank" rel="noopener">Portrait display · LIVE SYNC ↗</a>
+        <button id="logoutButton" class="logout-button" type="button">Log out</button>
+      </div>
+    </aside>
+
+    <main class="dashboard-main">
+      <header class="dashboard-header">
+        <div>
+          <p class="kicker">ROOTS GRILL DIGITAL SIGNAGE</p>
+          <h1>Dashboard</h1>
+        </div>
+
+        <div class="user-chip">
+          <span class="online-dot"></span>
+          <div>
+            <strong id="currentUser">rootsgrill</strong>
+            <small>Administrator</small>
+          </div>
+        </div>
+      </header>
+
+      <section id="overview" class="section-block">
+        <div class="section-heading-row">
+          <div>
+            <p class="kicker">LIVE OVERVIEW</p>
+            <h2>Your display system</h2>
+          </div>
+
+          <button id="refreshButton" class="secondary-button" type="button">
+            Refresh data
+          </button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>Total media</span>
+            <strong id="totalCount">0</strong>
+            <small>All uploaded files</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Landscape</span>
+            <strong id="landscapeCount">0</strong>
+            <small>Wide menu artwork</small>
+          </article>
+
+          <article class="stat-card">
+            <span>Portrait</span>
+            <strong id="portraitCount">0</strong>
+            <small>Vertical menu artwork</small>
+          </article>
+
+          <article class="stat-card">
+            <span>System</span>
+            <strong class="status-word">Online</strong>
+            <small>Supabase connected</small>
+          </article>
+        </div>
+
+        <div class="display-grid">
+          <a class="display-card landscape-card" href="./" target="_blank" rel="noopener">
+            <div class="screen-shape landscape-shape"><span>16:9</span></div>
+            <div>
+              <span class="card-label">DISPLAY 01</span>
+              <h3>Roots Grill Landscape</h3>
+              <p>All landscape media plays here in one slideshow.</p>
+            </div>
+            <b>↗</b>
+          </a>
+
+          <a class="display-card portrait-card" href="portrait.html" target="_blank" rel="noopener">
+            <div class="screen-shape portrait-shape"><span>9:16</span></div>
+            <div>
+              <span class="card-label">DISPLAY 02</span>
+              <h3>Roots Grill Portrait</h3>
+              <p>All portrait media plays here in one slideshow.</p>
+            </div>
+            <b>↗</b>
+          </a>
+        </div>
+      </section>
+
+      <section id="upload" class="section-block">
+        <div class="section-heading-row">
+          <div>
+            <p class="kicker">CONTENT MANAGEMENT</p>
+            <h2>Upload new media</h2>
+            <p class="muted">
+              Wide images are sent to Landscape. Tall images are sent to Portrait automatically.
+            </p>
+          </div>
+        </div>
+
+        <form id="uploadForm" class="upload-panel">
+          <label id="dropZone" class="drop-zone" for="mediaInput">
+            <div class="upload-icon">＋</div>
+            <strong>Drop artwork here or choose files</strong>
+            <span>JPG, PNG, WEBP, GIF, MP4, WEBM or MOV · maximum 50 MB per file</span>
+            <input id="mediaInput" name="media" type="file" accept="image/*,video/*" multiple required />
+          </label>
+
+          <div class="upload-footer">
+            <p id="selectionText">No files selected.</p>
+            <button id="uploadButton" class="primary-button" type="submit">Upload media</button>
+          </div>
+
+          <div id="uploadProgress" class="progress-track" hidden><span></span></div>
+          <p id="uploadStatus" class="form-status" role="status"></p>
+        </form>
+      </section>
+
+      <section id="library" class="section-block library-section">
+        <div class="section-heading-row">
+          <div>
+            <p class="kicker">MEDIA LIBRARY</p>
+            <h2>Uploaded artwork</h2>
+            <p class="muted">
+              Scroll through every item currently available to the two displays.
+            </p>
+          </div>
+
+          <div class="filter-group" role="group" aria-label="Filter media">
+            <button class="filter-button active" data-filter="all" type="button">All</button>
+            <button class="filter-button" data-filter="landscape" type="button">Landscape</button>
+            <button class="filter-button" data-filter="portrait" type="button">Portrait</button>
+          </div>
+        </div>
+
+        <div id="adminGrid" class="media-grid"></div>
+
+        <div id="adminEmptyState" class="empty-state">
+          <div>◇</div>
+          <h3>No media uploaded yet</h3>
+          <p>Your uploaded artwork will appear here.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="cloud-dashboard.js"></script>
+</body>
+</html>
