@@ -10,6 +10,8 @@
   var fallback = document.getElementById('portraitFallback');
   var signature = '', currentIndex = -1, currentVideo = null;
   var items = [];
+  var refreshing = false, portraitLoadToken = 0, imageCache = Object.create(null);
+  var lastSuccessfulRefresh = 0;
   function errorMessage(message) {
     if (portrait) { fallback.textContent = message; fallback.style.display = 'grid'; }
     else if (!items.length) stage.innerHTML = '<div class="display-empty"><strong>'+message+'</strong></div>';
@@ -23,9 +25,10 @@
     if (portrait) {
       var item = items[i];
       if (i === currentIndex && screen.src === item.url) return;
+      var token = ++portraitLoadToken;
       var preload = new Image();
-      preload.onload = function () { screen.src = item.url; screen.hidden = false; screen.style.display = 'block'; fallback.style.display = 'none'; currentIndex = i; };
-      preload.onerror = function () { errorMessage('Media unavailable. Retrying…'); };
+      preload.onload = function () { if (token !== portraitLoadToken) return; screen.src = item.url; screen.hidden = false; screen.style.display = 'block'; fallback.style.display = 'none'; currentIndex = i; };
+      preload.onerror = function () { if (token === portraitLoadToken) errorMessage('Media unavailable. Retrying…'); };
       preload.src = item.url;
       return;
     }
@@ -59,7 +62,11 @@
     var next = (Array.isArray(state.items) ? state.items : []).filter(function(i){ return (i.display || display) === display && safeUrl(i.url) && (!portrait || !isVideo(i)); });
     var sig = signatureOf(next);
     if (sig !== signature) {
-      signature = sig; items = next; currentIndex = -1;
+      signature = sig; items = next; currentIndex = -1; portraitLoadToken++;
+      if (!portrait) {
+        imageCache = Object.create(null);
+        next.forEach(function(item) { if (!isVideo(item)) { var pre = new Image(); pre.src = item.url; imageCache[item.url] = pre; } });
+      }
       if (!portrait) {
         stage.innerHTML = '';
         next.forEach(function(item) {
@@ -75,13 +82,22 @@
     show(state.currentIndex, state.slotStartedAt);
   }
   async function refresh() {
+    if (refreshing || document.hidden || !navigator.onLine) return;
+    refreshing = true;
+    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    var timeout = controller ? setTimeout(function() { controller.abort(); }, 8000) : null;
     try {
-      var response = await fetch(endpoint+'&_='+Date.now(), {headers:{'apikey':publishable},cache:'no-store'});
+      var options = {headers:{'apikey':publishable},cache:'no-store'};
+      if (controller) options.signal = controller.signal;
+      var response = await fetch(endpoint+'&_='+Date.now(), options);
       if (!response.ok) throw new Error('Display service HTTP '+response.status);
       apply(await response.json());
+      lastSuccessfulRefresh = Date.now();
     } catch (e) { console.warn('Roots Grill display refresh:',e); if (!items.length) errorMessage('Connecting to Roots Grill Cloud…'); }
+    finally { if (timeout) clearTimeout(timeout); refreshing = false; }
   }
   refresh();
   setInterval(refresh, 2000);
   window.addEventListener('online',refresh);
+  document.addEventListener('visibilitychange', function() { if (!document.hidden) refresh(); });
 })();
