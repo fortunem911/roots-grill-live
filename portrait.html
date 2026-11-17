@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>Roots Grill Portrait</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #000;
+    }
+    #portraitStage {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      width: 100vh;
+      height: 100vw;
+      transform: translate(-50%, -50%) rotate(270deg);
+      transform-origin: center;
+      overflow: hidden;
+      background: #000;
+      contain: strict;
+    }
+    #portraitScreen {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      background: #000;
+      border: 0;
+      margin: 0;
+      padding: 0;
+      /* Intentionally no opacity, animation or transition. */
+    }
+    #portraitFallback {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font: 600 18px system-ui, sans-serif;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+  <main id="portraitStage">
+    <img id="portraitScreen" alt="Roots Grill portrait artwork" hidden />
+    <div id="portraitFallback">Waiting for portrait media…</div>
+  </main>
+  <script src="cloud-player.js"></script>
+</body>
+</html>
