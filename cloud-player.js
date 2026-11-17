@@ -32,11 +32,10 @@
       return;
     }
     if (i === currentIndex) {
-      if (currentVideo && Number.isFinite(Number(slotStartedAt))) {
-        var desired = Math.max(0,(Date.now() - Number(slotStartedAt))/1000);
-        if (Math.abs(currentVideo.currentTime - desired) > 1.5 && Number.isFinite(currentVideo.duration)) {
-          try { currentVideo.currentTime = Math.min(desired,Math.max(0,currentVideo.duration-0.1)); } catch (_) {}
-        }
+      // Do not repeatedly seek on every cloud poll: seeking stalls many built-in TV browsers.
+      if (currentVideo && currentVideo.paused && currentVideo.readyState >= 2) {
+        var resume = currentVideo.play();
+        if (resume && resume.catch) resume.catch(function(){});
       }
       return;
     }
@@ -55,8 +54,9 @@
     if (currentVideo) {
       currentVideo.muted = true;
       var desiredSeconds = Number.isFinite(Number(slotStartedAt)) ? Math.max(0,(Date.now()-Number(slotStartedAt))/1000) : 0;
-      if (currentVideo.readyState >= 1 && Number.isFinite(currentVideo.duration)) {
-        try { currentVideo.currentTime = Math.min(desiredSeconds,Math.max(0,currentVideo.duration-0.1)); } catch (_) {}
+      // Seek once when activating a clip, not repeatedly during playback.
+      if (currentVideo.readyState >= 2 && Number.isFinite(currentVideo.duration) && desiredSeconds < currentVideo.duration - 0.5) {
+        try { currentVideo.currentTime = desiredSeconds; } catch (_) {}
       }
       var promise = currentVideo.play(); if (promise && promise.catch) promise.catch(function(){});
     }
