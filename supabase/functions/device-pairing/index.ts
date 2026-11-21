@@ -1,88 +1,116 @@
-// ROOTS_GRILL_DEVICE_PAIRING_API_V1
-// Supabase Edge Function: device-pairing. Deploy with legacy JWT verification OFF.
-// POST actions: start, poll, approve. No changes to existing player URLs.
+// ROOTS_GRILL_DEVICE_PAIRING_API_V1_1
+// Supabase Edge Function: device-pairing
+// Development scope: ONLY pre-registered home-test screens.
+// Deploy with legacy JWT verification OFF.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
-const CORS = {
+const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'content-type, apikey, authorization',
   'Cache-Control': 'no-store'
 };
-const url = Deno.env.get('SUPABASE_URL')!;
-const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-const db = createClient(url, serviceKey, {auth:{persistSession:false,autoRefreshToken:false}});
-const enc = new TextEncoder();
-const reply = (data:unknown,status=200)=>Response.json(data,{status,headers:CORS});
-const digest = async (value:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',enc.encode(value)))).map(x=>x.toString(16).padStart(2,'0')).join('');
-const secret = (bytes=32)=>Array.from(crypto.getRandomValues(new Uint8Array(bytes))).map(x=>x.toString(16).padStart(2,'0')).join('');
-const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-function pairingCode() {
-  const random=crypto.getRandomValues(new Uint8Array(10));
-  return Array.from(random,x=>alphabet[x%alphabet.length]).join('');
+const db = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
+const respond = (data: unknown, status = 200) =>
+  Response.json(data, { status, headers: cors });
+const hash = async (value: string) =>
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+const randomHex = (n = 32) =>
+  Array.from(crypto.getRandomValues(new Uint8Array(n)))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+function randomCode() {
+  // Rejection sampling avoids modulo bias.
+  const result: string[] = [];
+  while (result.length < 10) {
+    const bytes = crypto.getRandomValues(new Uint8Array(16));
+    for (const b of bytes) {
+      if (b < 224 && result.length < 10) result.push(alphabet[b % alphabet.length]);
+    }
+  }
+  return result.join('');
 }
-const validId=(v:unknown)=>typeof v==='string'&&/^[a-z0-9][a-z0-9-]{2,79}$/.test(v);
-const validClaim=(v:unknown)=>typeof v==='string'&&/^[0-9a-f]{64}$/.test(v);
-async function isAdmin(req:Request) {
-  const jwt=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
-  if(!jwt) return null;
-  const {data:{user},error}=await db.auth.getUser(jwt);
-  if(error||!user) return null;
-  // Verify membership directly; service-role RPC is not user-scoped.
-  const {data:membership,error:membershipError}=await db.from('grill_admins').select('*').eq('user_id',user.id).limit(1);
-  if(membershipError||!membership?.length) return null;
-  return user.id;
+const validClaim = (v: unknown) => typeof v === 'string' && /^[a-f0-9]{64}$/.test(v);
+const validUuid = (v: unknown) => typeof v === 'string' &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
+async function headOfficeUser(request: Request) {
+  const jwt = (request.headers.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!jwt) return null;
+  const { data: { user }, error } = await db.auth.getUser(jwt);
+  if (error || !user) return null;
+  const { data: admin, error: adminError } = await db.from('grill_admins')
+    .select('user_id').eq('user_id', user.id).maybeSingle();
+  return adminError || !admin ? null : user.id;
 }
-Deno.serve(async(req)=>{
-  if(req.method==='OPTIONS') return new Response(null,{headers:CORS});
-  if(req.method!=='POST') return reply({error:'Method not allowed'},405);
+Deno.serve(async (request) => {
+  if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
+  if (request.method !== 'POST') return respond({ error: 'Method not allowed' }, 405);
   try {
-    const input=await req.json();
-    const action=input?.action;
-    if(action==='start') {
-      const claim=secret();
-      const code=pairingCode();
-      const {data,error}=await db.from('grill_pairing_requests').insert({
-        code_hash:await digest(code),claim_secret_hash:await digest(claim)
-      }).select('id,expires_at').single();
-      if(error) throw error;
-      return reply({requestId:data.id,code,claimSecret:claim,expiresAt:data.expires_at});
+    const input = await request.json();
+    if (!input || typeof input !== 'object') return respond({ error: 'Invalid body' }, 400);
+
+    if (input.action === 'start') {
+      const claimSecret = randomHex();
+      const code = randomCode();
+      const { data, error } = await db.from('grill_pairing_requests')
+        .insert({ code_hash: await hash(code), claim_secret_hash: await hash(claimSecret) })
+        .select('id,expires_at').single();
+      if (error) throw error;
+      return respond({ requestId: data.id, code, claimSecret, expiresAt: data.expires_at });
     }
-    if(action==='poll') {
-      if(typeof input.requestId!=='string'||!validClaim(input.claimSecret)) return reply({error:'Invalid pairing request'},400);
-      const {data:pair,error}=await db.from('grill_pairing_requests').select('id,status,expires_at,claim_secret_hash,screen_id').eq('id',input.requestId).maybeSingle();
-      if(error) throw error;
-      if(!pair||pair.claim_secret_hash!==await digest(input.claimSecret)) return reply({error:'Unauthorized'},401);
-      if(new Date(pair.expires_at).getTime()<=Date.now()) return reply({status:'expired'});
-      if(pair.status==='pending') return reply({status:'pending'});
-      if(pair.status!=='approved') return reply({status:pair.status});
-      const token=secret();
-      const tokenHash=await digest(token);
-      // First claimant wins: transition request atomically via status filter.
-      const {data:claimed,error:claimError}=await db.from('grill_pairing_requests').update({status:'claimed',claimed_at:new Date().toISOString()}).eq('id',pair.id).eq('status','approved').select('screen_id').maybeSingle();
-      if(claimError) throw claimError;
-      if(!claimed) return reply({status:'claimed'});
-      const {data:screen,error:screenError}=await db.from('grill_screens').update({token_hash:tokenHash,last_seen:null,current_media_id:null,current_media_name:null}).eq('id',pair.screen_id).select('id,label,store_id,display,rotation').single();
-      if(screenError) throw screenError;
-      return reply({status:'paired',screen,deviceToken:token});
+
+    if (input.action === 'poll') {
+      if (!validUuid(input.requestId) || !validClaim(input.claimSecret))
+        return respond({ error: 'Invalid pairing request' }, 400);
+      const { data: pair, error } = await db.from('grill_pairing_requests')
+        .select('status,expires_at,claim_secret_hash,screen_id')
+        .eq('id', input.requestId).maybeSingle();
+      if (error) throw error;
+      if (!pair || pair.claim_secret_hash !== await hash(input.claimSecret))
+        return respond({ error: 'Unauthorized' }, 401);
+      if (new Date(pair.expires_at).getTime() <= Date.now())
+        return respond({ status: 'expired' });
+      if (pair.status !== 'approved') return respond({ status: pair.status });
+      const { data: screen, error: screenError } = await db.from('grill_screens')
+        .select('id,label,store_id,display,rotation')
+        .eq('id', pair.screen_id).eq('store_id', 'home-test').maybeSingle();
+      if (screenError) throw screenError;
+      if (!screen) return respond({ error: 'Screen unavailable' }, 409);
+      // Device already possesses claimSecret, which is its heartbeat token.
+      return respond({ status: 'paired', screen });
     }
-    if(action==='approve') {
-      const admin=await isAdmin(req);
-      if(!admin) return reply({error:'Head Office authorization required'},403);
-      const code=typeof input.code==='string'?input.code.toUpperCase().replace(/\s/g,''):'';
-      if(!/^[A-Z2-9]{10}$/.test(code)||!validId(input.screenId)) return reply({error:'Invalid code or screen ID'},400);
-      const {data:screen,error:screenError}=await db.from('grill_screens').select('id').eq('id',input.screenId).maybeSingle();
-      if(screenError) throw screenError;
-      if(!screen) return reply({error:'Register the screen first'},404);
-      const hash=await digest(code);
-      const {data:pair,error}=await db.from('grill_pairing_requests').update({status:'approved',approved_at:new Date().toISOString(),approved_by:admin,screen_id:input.screenId}).eq('code_hash',hash).eq('status','pending').gt('expires_at',new Date().toISOString()).select('id').maybeSingle();
-      if(error) throw error;
-      if(!pair) return reply({error:'Code expired, invalid, or already used'},404);
-      return reply({ok:true,status:'approved',screenId:input.screenId});
+
+    if (input.action === 'approve') {
+      const adminId = await headOfficeUser(request);
+      if (!adminId) return respond({ error: 'Head Office authorization required' }, 403);
+      const code = typeof input.code === 'string' ? input.code.toUpperCase().replace(/\s/g, '') : '';
+      if (!/^[A-HJ-NP-Z2-9]{10}$/.test(code) ||
+          typeof input.screenId !== 'string' ||
+          !/^home-(landscape|portrait)-01$/.test(input.screenId))
+        return respond({ error: 'Invalid code or test screen ID' }, 400);
+      const { data: screen, error: screenError } = await db.from('grill_screens')
+        .select('id,store_id').eq('id', input.screenId).maybeSingle();
+      if (screenError) throw screenError;
+      if (!screen || screen.store_id !== 'home-test')
+        return respond({ error: 'Only home test screens may be paired in V1.1' }, 403);
+      const { data: approved, error } = await db.rpc('grill_approve_pairing', {
+        p_code_hash: await hash(code),
+        p_screen_id: screen.id,
+        p_admin_id: adminId
+      });
+      if (error) throw error;
+      if (!approved) return respond({ error: 'Code expired, invalid, or already used' }, 404);
+      return respond({ ok: true, status: 'approved', screenId: screen.id });
     }
-    return reply({error:'Unknown action'},400);
-  } catch(e) {
-    console.error('device pairing error',e);
-    return reply({error:'Pairing service unavailable'},503);
+
+    return respond({ error: 'Unknown action' }, 400);
+  } catch (error) {
+    console.error('Pairing API error', error);
+    return respond({ error: 'Pairing service unavailable' }, 503);
   }
 });
