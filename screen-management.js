@@ -35,10 +35,10 @@ async function load(){
     const location=prompt('Location',screen.location||screen.store_id);if(location===null)return;
     action='update';fields={...fields,label,location};
    }else if(action==='toggle'){
-    if(!confirm((screen.disabled?'Enable ':'Disable ')+screen.label+'?'+(screen.disabled?'':' This will reject its next heartbeat once the updated heartbeat service is deployed.')))return;
+    if(!confirm((screen.disabled?'Enable ':'Disable ')+screen.label+'?'+(screen.disabled?'':' The TV will show a disabled screen until re-enabled.')))return;
     action='update';fields.disabled=!screen.disabled;
    }else if(action==='remove'){
-    if(!confirm('Remove '+screen.label+'? Only screens that have never paired (or have had their pairing revoked) can be removed.'))return;
+    if(!confirm('Remove '+screen.label+'? This permanently deletes its registration and revokes its pairing. The physical TV can be registered again with a fresh code.'))return;
    }
    button.disabled=true;
    try{await call(action,fields);await load();status.textContent='✓ Screen '+(action==='remove'?'removed':'updated')+'.';}
