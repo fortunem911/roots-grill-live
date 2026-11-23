@@ -51,6 +51,15 @@
   function safeUrl(url) { try { var u = new URL(url); return u.protocol === 'https:' ? u.href : ''; } catch (_) { return ''; } }
   function isVideo(item) { return String(item.mimeType || '').indexOf('video/') === 0; }
   function signatureOf(list) { return list.map(function(i){return i.id+':'+i.url+':'+i.durationMs;}).join('|'); }
+  // Inform the paired universal player only after a media item becomes active.
+  // Public legacy players can ignore this event without changing playback.
+  function reportPlay(item) {
+    if (!item || !item.id) return;
+    window.dispatchEvent(new CustomEvent('roots-grill-media-started', {detail:{
+      mediaId:String(item.id), mediaName:String(item.originalName || item.filename || item.id),
+      startedAt:new Date().toISOString(), durationMs:Number.isInteger(item.durationMs) && item.durationMs>=0 ? item.durationMs : null
+    }}));
+  }
   function show(index, slotStartedAt) {
     if (!items.length) { errorMessage('Waiting for '+display+' media…'); return; }
     var i = ((Number(index) || 0) % items.length + items.length) % items.length;
@@ -59,7 +68,7 @@
       if (i === currentIndex && screen.src === item.url) return;
       var token = ++portraitLoadToken;
       var preload = new Image();
-      preload.onload = function () { if (token !== portraitLoadToken) return; screen.src = item.url; screen.hidden = false; screen.style.display = 'block'; fallback.style.display = 'none'; currentIndex = i; };
+      preload.onload = function () { if (token !== portraitLoadToken) return; screen.src = item.url; screen.hidden = false; screen.style.display = 'block'; fallback.style.display = 'none'; currentIndex = i; reportPlay(item); };
       preload.onerror = function () { if (token === portraitLoadToken) errorMessage('Media unavailable. Retrying…'); };
       preload.src = item.url;
       return;
@@ -95,6 +104,20 @@
       var promise = currentVideo.play(); if (promise && promise.catch) promise.catch(function(){});
     }
     currentIndex = i;
+    if (currentVideo) {
+      var startedVideo = currentVideo, activeIndex = i, activeItem = items[i];
+      if (!startedVideo.paused && startedVideo.readyState >= 2) reportPlay(activeItem);
+      else startedVideo.addEventListener('playing', function onStarted() {
+        startedVideo.removeEventListener('playing', onStarted);
+        if (currentIndex === activeIndex) reportPlay(activeItem);
+      }, {once:true});
+    } else if (slides[i] && slides[i].querySelector('img')) {
+      var activeImage = slides[i].querySelector('img'), imageItem = items[i];
+      if (activeImage.complete && activeImage.naturalWidth > 0) reportPlay(imageItem);
+      else activeImage.addEventListener('load', function onLoaded() {
+        if (currentIndex === i) reportPlay(imageItem);
+      }, {once:true});
+    }
   }
   function apply(state) {
     var next = (Array.isArray(state.items) ? state.items : []).filter(function(i){ return (i.display || display) === display && safeUrl(i.url) && (!portrait || !isVideo(i)); });
