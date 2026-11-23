@@ -1171,7 +1171,7 @@
         .screen-mgmt-row:last-child{border-bottom:0}
         .screen-mgmt-name{background:none;border:0;color:#fff;font:inherit;font-weight:800;text-align:left;padding:0;cursor:pointer;text-decoration:underline;text-decoration-color:#555;text-underline-offset:4px}
         .screen-mgmt-name:hover{color:#ff858b}
-        .screen-detail-panel{border:1px solid #444852;border-radius:16px;background:#11141b;padding:20px;margin:12px 0 20px}
+        .screen-detail-panel{scroll-margin-top:24px;border:1px solid #444852;border-radius:16px;background:#11141b;padding:20px;margin:12px 0 20px}
         .screen-detail-panel[hidden]{display:none}
         .screen-detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
         .screen-detail-head button{border:1px solid #555;background:#232630;color:white;border-radius:8px;padding:8px 12px;cursor:pointer}
@@ -1180,6 +1180,15 @@
         .screen-detail-grid small{display:block;color:#aab0ba;margin-bottom:7px}
         .screen-detail-note{color:#aab0ba;font-size:13px;line-height:1.6;margin-top:16px}.screen-mgmt-row>div{display:grid;gap:5px}.screen-mgmt-row small{color:var(--muted);font-size:12px}
         .screen-mgmt-row>div:last-child{text-align:right}.screen-mgmt-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}.screen-mgmt-actions button{border:1px solid #454750;background:#20232a;color:#fff;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px}.screen-mgmt-actions button:hover{border-color:#ff6d77}.screen-mgmt-pill{display:inline-block;color:#b9bec9;background:#252830;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:800}.screen-mgmt-pill.online{background:#123723;color:#66e99d}
+        #refreshScreensButton,.screen-mgmt-actions button,.screen-mgmt-name,#createScreenButton,.screen-detail-head button{transition:transform .18s ease,background-color .18s ease,border-color .18s ease,box-shadow .18s ease,opacity .18s ease}
+        #refreshScreensButton:not(:disabled):hover,.screen-mgmt-actions button:not(:disabled):hover,#createScreenButton:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 5px 18px rgba(0,0,0,.22)}
+        #refreshScreensButton:not(:disabled):active,.screen-mgmt-actions button:not(:disabled):active,#createScreenButton:not(:disabled):active{transform:scale(.97)}
+        #refreshScreensButton.rg-refresh-loading{opacity:.8;cursor:progress}
+        #refreshScreensButton.rg-refresh-success{border-color:#66e99d;color:#66e99d}
+        #refreshScreensButton.rg-refresh-error{border-color:#ff8d92;color:#ff8d92}
+        .rg-action-loading{opacity:.65;cursor:progress!important}
+        .screen-mgmt-name:focus-visible,.screen-mgmt-actions button:focus-visible,#refreshScreensButton:focus-visible{outline:2px solid #ff858b;outline-offset:3px}
+        @media(prefers-reduced-motion:reduce){#refreshScreensButton,.screen-mgmt-actions button,.screen-mgmt-name,#createScreenButton,.screen-detail-head button{transition:none!important}}
         @media(max-width:800px){.screen-mgmt-fields{grid-template-columns:1fr}.screen-mgmt-row{align-items:flex-start}}
         </style>
         <div class="screen-mgmt-panel"><p class="kicker">ADD NEW SCREEN</p><form id="newScreenForm"><div class="screen-mgmt-fields">
@@ -1207,6 +1216,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="cloud-dashboard.js?v=20261117-upload-recovery-2"></script>
-  <script src="screen-management.js?v=20261123-history-v1"></script>
+  <script src="screen-management.js?v=20261123-ux-v2"></script>
 </body>
 </html>
