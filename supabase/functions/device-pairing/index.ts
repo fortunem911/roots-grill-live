@@ -1,6 +1,6 @@
-// ROOTS_GRILL_DEVICE_PAIRING_API_V1_2
+// ROOTS_GRILL_DEVICE_PAIRING_API_V1_3
 // Supabase Edge Function: device-pairing
-// Scope: pre-registered home-test and head-office screens only.
+// Scope: any registered screen, approved by authenticated Head Office.
 // Deploy with legacy JWT verification OFF.
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -80,7 +80,7 @@ Deno.serve(async (request) => {
         .select('id,label,store_id,display,rotation')
         .eq('id', pair.screen_id).maybeSingle();
       if (screenError) throw screenError;
-      if (!screen || !['home-test', 'head-office'].includes(screen.store_id) || !/^(home-(landscape|portrait)-01|roots-grill-(landscape|portrait)-01)$/.test(screen.id)) return respond({ error: 'Screen unavailable' }, 409);
+      if (!screen || !['landscape','portrait'].includes(screen.display)) return respond({ error: 'Screen unavailable' }, 409);
       // Device already possesses claimSecret, which is its heartbeat token.
       return respond({ status: 'paired', screen });
     }
@@ -91,12 +91,12 @@ Deno.serve(async (request) => {
       const code = typeof input.code === 'string' ? input.code.toUpperCase().replace(/\s/g, '') : '';
       if (!/^[A-HJ-NP-Z2-9]{10}$/.test(code) ||
           typeof input.screenId !== 'string' ||
-          !/^(home-(landscape|portrait)-01|roots-grill-(landscape|portrait)-01)$/.test(input.screenId))
-        return respond({ error: 'Invalid code or test screen ID' }, 400);
+          !/^[-a-z0-9]{1,100}$/.test(input.screenId))
+        return respond({ error: 'Invalid code or screen ID' }, 400);
       const { data: screen, error: screenError } = await db.from('grill_screens')
         .select('id,store_id').eq('id', input.screenId).maybeSingle();
       if (screenError) throw screenError;
-      if (!screen || !((/^home-(landscape|portrait)-01$/.test(screen.id) && screen.store_id === 'home-test') || (/^roots-grill-(landscape|portrait)-01$/.test(screen.id) && screen.store_id === 'head-office')))
+      if (!screen)
         return respond({ error: 'Screen is not registered for pairing' }, 403);
       const { data: approved, error } = await db.rpc('grill_approve_pairing', {
         p_code_hash: await hash(code),
