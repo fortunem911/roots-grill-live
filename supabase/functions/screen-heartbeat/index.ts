@@ -22,9 +22,9 @@ Deno.serve(async request=>{
     if(typeof data?.screenId!=='string'||data.screenId.length>100) return reply({error:'Invalid screen'},400);
     const hash=hex(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(token)));
     const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
-    const {data:screen,error}=await db.from('grill_screens').select('id,token_hash').eq('id',data.screenId).maybeSingle();
+    const {data:screen,error}=await db.from('grill_screens').select('id,token_hash,disabled').eq('id',data.screenId).maybeSingle();
     if(error) throw error;
-    if(!screen||screen.token_hash!==hash) return reply({error:'Unauthorized'},401);
+    if(!screen||screen.disabled||screen.token_hash!==hash) return reply({error:'Unauthorized'},401);
     const clean=(value:unknown,max:number)=>typeof value==='string'?value.slice(0,max):null;
     const {error:updateError}=await db.from('grill_screens').update({
       last_seen:new Date().toISOString(),
