@@ -122,6 +122,9 @@
   function startHeartbeat(token, screen) {
     screenId = screen.id;
     startPlayer(screen);
+    // Pairing is complete: do not block media on the monitoring request.
+    overlay.hidden = true;
+    setBookmarkUrl(screen);
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     var inFlight = false;
     async function beat() {
@@ -134,7 +137,6 @@
         await request('heartbeat', body, token);
         if (play && pendingPlays[0] === play) pendingPlays.shift();
         overlay.hidden = true;
-        setBookmarkUrl(screen);
         if (pendingPlays.length) setTimeout(beat, 100);
       } catch (e) {
         if (e.status === 403) {
@@ -203,9 +205,6 @@
             if (!save(storageKey, { token: pending.claimSecret, screen: result.screen }))
               throw Error('Unable to remember this device. Check browser storage.');
             remove(pendingKey);
-              title.textContent = 'Screen approved!';
-            message.textContent = 'Connecting to live monitoring…';
-            codeEl.hidden = true;
             startHeartbeat(pending.claimSecret, result.screen);
           } else if (result.status === 'expired' || result.status === 'cancelled') {
             clearInterval(pairingTimer);
