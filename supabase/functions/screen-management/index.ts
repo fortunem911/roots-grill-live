@@ -1,4 +1,4 @@
-// ROOTS_GRILL_SCREEN_MANAGEMENT_V1
+// ROOTS_GRILL_SCREEN_MANAGEMENT_V2
 // Deploy as Supabase Edge Function "screen-management" with legacy JWT verification OFF.
 // Head Office authorization is checked on every request.
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -19,23 +19,43 @@ Deno.serve(async req=>{
   if(body.action==='list'){
    const [stores,screens]=await Promise.all([
     db.from('grill_stores').select('id,name').order('name'),
-    db.from('grill_screens').select('id,label,store_id,display,rotation,last_seen,player_mode,playback_issue,updated_at').order('label')
+    db.from('grill_screens').select('id,label,location,disabled,store_id,display,rotation,last_seen,player_mode,playback_issue,updated_at').order('label')
    ]);
    if(stores.error)throw stores.error;if(screens.error)throw screens.error;
    return reply({ok:true,stores:stores.data,screens:screens.data,serverTime:new Date().toISOString()});
   }
   if(body.action==='create'){
    const label=typeof body.label==='string'?body.label.trim():'';
-   const storeId=typeof body.storeId==='string'?body.storeId.trim():'';
+   const location=typeof body.location==='string'?body.location.trim():'';
+   const storeId='head-office'; // Until manager scopes are introduced, HO owns new registrations.
    const display=body.display;
-   if(label.length<2||label.length>80||!/^[-a-z0-9]{1,100}$/.test(storeId)||!['landscape','portrait'].includes(display))
-    return reply({error:'Invalid label, store or orientation'},400);
+   if(label.length<2||label.length>80||location.length<2||location.length>120||!['landscape','portrait'].includes(display))
+    return reply({error:'Invalid name, location or orientation'},400);
    const {data:store,error:storeError}=await db.from('grill_stores').select('id').eq('id',storeId).maybeSingle();
    if(storeError)throw storeError;if(!store)return reply({error:'Store not registered'},404);
    const id='screen-'+crypto.randomUUID();
-   const {data,error}=await db.from('grill_screens').insert({id,label,store_id:storeId,display,rotation:display==='portrait'?270:0}).select('id,label,store_id,display,rotation').single();
+   const {data,error}=await db.from('grill_screens').insert({id,label,location,store_id:storeId,display,rotation:display==='portrait'?270:0}).select('id,label,store_id,display,rotation').single();
    if(error)throw error;
    return reply({ok:true,screen:data},201);
+  }
+  if(body.action==='update'){
+   if(typeof body.screenId!=='string'||!/^[-a-z0-9]{1,100}$/.test(body.screenId))return reply({error:'Invalid screen'},400);
+   const patch:Record<string,unknown>={};
+   if(body.label!==undefined){if(typeof body.label!=='string'||body.label.trim().length<2||body.label.trim().length>80)return reply({error:'Invalid screen name'},400);patch.label=body.label.trim();}
+   if(body.location!==undefined){if(typeof body.location!=='string'||body.location.trim().length<2||body.location.trim().length>120)return reply({error:'Invalid location'},400);patch.location=body.location.trim();}
+   if(body.disabled!==undefined){if(typeof body.disabled!=='boolean')return reply({error:'Invalid disabled state'},400);patch.disabled=body.disabled;}
+   if(!Object.keys(patch).length)return reply({error:'Nothing to update'},400);
+   const {data,error}=await db.from('grill_screens').update(patch).eq('id',body.screenId).select('id,label,location,disabled').maybeSingle();
+   if(error)throw error;if(!data)return reply({error:'Screen not found'},404);
+   return reply({ok:true,screen:data});
+  }
+  if(body.action==='remove'){
+   if(typeof body.screenId!=='string'||!/^[-a-z0-9]{1,100}$/.test(body.screenId))return reply({error:'Invalid screen'},400);
+   const {data:screen,error:readError}=await db.from('grill_screens').select('id,token_hash').eq('id',body.screenId).maybeSingle();
+   if(readError)throw readError;if(!screen)return reply({error:'Screen not found'},404);
+   if(screen.token_hash)return reply({error:'Paired screen cannot be removed. Disable it instead.'},409);
+   const {error}=await db.from('grill_screens').delete().eq('id',body.screenId);
+   if(error)throw error;return reply({ok:true});
   }
   return reply({error:'Unknown action'},400);
  }catch(error){console.error('Screen management:',error);return reply({error:'Screen management service unavailable'},503);}
