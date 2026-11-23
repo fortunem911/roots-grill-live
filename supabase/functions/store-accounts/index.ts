@@ -35,7 +35,7 @@ Deno.serve(async req=>{
     admin.from('grill_screens').select('id,label,location,store_id,display,last_seen,disabled,current_media_name,playback_issue').in('store_id',storeIds).order('label')
    ]);
    if(stores.error)throw stores.error;if(screens.error)throw screens.error;
-   return send({ok:true,stores:stores.data,screens:screens.data,serverTime:new Date().toISOString(),email:user.email});
+   return send({ok:true,stores:stores.data,screens:screens.data,serverTime:new Date().toISOString(),email:user.email,managerName:typeof user.user_metadata?.full_name==='string'?user.user_metadata.full_name:''});
   }
   const {data:headOffice,error:adminErr}=await admin.from('grill_admins').select('user_id').eq('user_id',user.id).maybeSingle();
   if(adminErr||!headOffice)return send({error:'Head Office access required'},403);
@@ -67,6 +67,8 @@ Deno.serve(async req=>{
   if(body.action==='invite'){
    const storeId=typeof body.storeId==='string'?body.storeId:'';
    const email=typeof body.email==='string'?body.email.trim().toLowerCase():'';
+   const managerName=typeof body.managerName==='string'?body.managerName.trim().replace(/\s+/g,' '):'';
+   if(managerName.length<2||managerName.length>80)return send({error:'Manager name must be 2–80 characters'},400);
    if(!/^[-a-z0-9]{1,100}$/.test(storeId)||!/^\S+@\S+\.\S+$/.test(email)||email.length>254)return send({error:'Invalid store or email'},400);
    const {data:store,error:storeErr}=await admin.from('grill_stores').select('id,name').eq('id',storeId).maybeSingle();
    if(storeErr)throw storeErr;if(!store)return send({error:'Store not found'},404);
@@ -75,7 +77,7 @@ Deno.serve(async req=>{
    const {data:inv,error:insertErr}=await admin.from('grill_store_invitations').insert({store_id:storeId,email,invited_by:user.id}).select('id').single();
    if(insertErr)return send({error:'Could not create invitation (it may already be pending)'},409);
    const redirectTo='https://fortunem911.github.io/roots-grill-live/manager-accept.html';
-   const {error:inviteErr}=await admin.auth.admin.inviteUserByEmail(email,{redirectTo,data:{roots_grill_store:store.name}});
+   const {error:inviteErr}=await admin.auth.admin.inviteUserByEmail(email,{redirectTo,data:{roots_grill_store:store.name,full_name:managerName}});
    if(inviteErr){
     await admin.from('grill_store_invitations').delete().eq('id',inv.id);
     return send({error:'Email invitation failed: '+inviteErr.message},502);
