@@ -48,13 +48,27 @@ var key='sb_publishable_IpUt3RpCm0f9Hlyiy_lRkA_GOuhS1pO';
 var db=window.supabase.createClient(url,key);
 var form=document.getElementById('pairForm'),status=document.getElementById('status'),button=document.getElementById('approveButton');
 var panel=document.getElementById('pairPanel'),warning=document.getElementById('authWarning');
+async function loadScreens(){
+ try{
+  var session=await db.auth.getSession(),token=session.data.session&&session.data.session.access_token;
+  if(!token)return;
+  var response=await fetch(url+'/functions/v1/screen-management',{method:'POST',headers:{'content-type':'application/json','apikey':key,'authorization':'Bearer '+token},body:JSON.stringify({action:'list'})});
+  if(!response.ok)return;
+  var result=await response.json();if(!result.ok||!Array.isArray(result.screens))return;
+  var select=document.getElementById('screenId'),selected=select.value;
+  select.replaceChildren();
+  result.screens.forEach(function(screen){var opt=document.createElement('option');opt.value=screen.id;opt.textContent=screen.label+' — '+screen.store_id+' / '+screen.display;select.appendChild(opt)});
+  if(result.screens.some(function(screen){return screen.id===selected}))select.value=selected;
+ }catch(e){console.warn('Could not load managed screens:',e)}
+}
+window.addEventListener('message',function(e){if(e.origin===location.origin&&e.data&&e.data.type==='roots-grill-screens-changed')loadScreens()});
 async function verify(){
  try{
   var userResult=await db.auth.getUser();
   if(userResult.error||!userResult.data.user)throw Error('Sign in required');
   var admin=await db.rpc('is_grill_admin');
   if(admin.error||admin.data!==true)throw Error('Head Office access required');
-  panel.hidden=false;warning.hidden=true;return true;
+  panel.hidden=false;warning.hidden=true;await loadScreens();return true;
  }catch(e){panel.hidden=true;warning.hidden=false;return false}
 }
 form.addEventListener('submit',async function(e){
@@ -62,7 +76,7 @@ form.addEventListener('submit',async function(e){
  var code=document.getElementById('pairCode').value.toUpperCase().replace(/\s/g,'');
  var screenId=document.getElementById('screenId').value;
  if(!/^[A-HJ-NP-Z2-9]{10}$/.test(code)){status.textContent='Check the 10-character code shown on the TV.';return}
- if(!/^(home-(landscape|portrait)-01|roots-grill-(landscape|portrait)-01)$/.test(screenId))return;
+ if(!/^[-a-z0-9]{1,100}$/.test(screenId))return;
  button.disabled=true;status.textContent='Checking Head Office authorization…';
  try{
   if(!await verify())throw Error('Your Head Office session has expired. Sign in again.');
