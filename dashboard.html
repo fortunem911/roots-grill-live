@@ -1163,6 +1163,7 @@
       <section id="screen-management" class="section-block">
         <div class="section-heading-row"><div><p class="kicker">HEAD OFFICE · DEVICE CONTROL</p><h2>Screen management</h2><p class="muted">Register screens for any room or location, manage access, and check heartbeat status.</p></div><button class="secondary-button" type="button" id="refreshScreensButton">Refresh screens</button></div>
         <style>
+        .rg-health-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:14px}.rg-health-card{background:#141820;border:1px solid #353943;border-radius:14px;padding:18px;display:grid;gap:12px}.rg-health-card small{color:#b7bdc8;font-weight:700}.rg-health-card strong{font-size:clamp(26px,3vw,38px);font-variant-numeric:tabular-nums;color:#fff}.rg-health-online strong{color:#66e99d}.rg-health-offline strong{color:#ffb86b}.rg-health-disabled strong{color:#ff8d92}@media(max-width:800px){.rg-health-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:400px){.rg-health-grid{grid-template-columns:1fr 1fr}.rg-health-card{padding:12px}}
         .screen-mgmt-panel{border:1px solid var(--line);border-radius:18px;background:var(--panel);padding:24px;margin-bottom:18px}
         .screen-mgmt-fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:end}
         .screen-mgmt-fields label{display:grid;gap:8px;color:#c9cdd5;font-size:13px;font-weight:700}
@@ -1191,6 +1192,7 @@
         @media(prefers-reduced-motion:reduce){#refreshScreensButton,.screen-mgmt-actions button,.screen-mgmt-name,#createScreenButton,.screen-detail-head button{transition:none!important}}
         @media(max-width:800px){.screen-mgmt-fields{grid-template-columns:1fr}.screen-mgmt-row{align-items:flex-start}}
         </style>
+        <div class="screen-mgmt-panel"><p class="kicker">LIVE SCREEN HEALTH</p><div id="screenHealthDashboard" class="rg-health-grid" aria-live="polite"><p class="muted">Loading screen health…</p></div><p class="muted" style="margin-top:12px;font-size:12px">Online means a heartbeat was received within the last 2 minutes. Updates automatically.</p></div>
         <div class="screen-mgmt-panel"><p class="kicker">ADD NEW SCREEN</p><form id="newScreenForm"><div class="screen-mgmt-fields">
         <label>Screen name<input id="newScreenLabel" placeholder="e.g. Boardroom Screen 01" maxlength="80" minlength="2" required></label>
         <label>Location<input id="newScreenLocation" placeholder="e.g. Head Office — Downstairs Boardroom" maxlength="120" minlength="2" required></label>
@@ -1216,6 +1218,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="cloud-dashboard.js?v=20261117-upload-recovery-2"></script>
-  <script src="screen-management.js?v=20261123-history-nine"></script>
+  <script src="screen-management.js?v=20261123-health-v1"></script>
 </body>
 </html>
