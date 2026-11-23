@@ -21,6 +21,15 @@ function refreshVisual(state){
 
 let lastLoadAt=0;
 const details=el('screenDetailsPanel');
+const health=el('screenHealthDashboard');
+function renderHealth(screens,serverTime){
+ if(!health)return;
+ const now=Date.parse(serverTime);
+ const counts={total:screens.length,online:0,offline:0,disabled:0};
+ screens.forEach(s=>{if(s.disabled)counts.disabled++;else if(s.last_seen&&now-Date.parse(s.last_seen)>=0&&now-Date.parse(s.last_seen)<120000)counts.online++;else counts.offline++;});
+ health.innerHTML=[['Registered TVs',counts.total,'monitor'],['Online',counts.online,'online'],['Offline / Not connected',counts.offline,'offline'],['Disabled',counts.disabled,'disabled']].map(([label,value,kind])=>'<div class="rg-health-card rg-health-'+kind+'"><small>'+label+'</small><strong>'+value+'</strong></div>').join('');
+}
+
 let selectedScreenId=null;
 let historyRequest=0;
 const durationLabel=v=>v==null?'Not reported':Math.round(v/1000)+'s (configured)';
@@ -41,7 +50,7 @@ function showDetails(screen,serverTime,scrollToPanel=false){
  selectedScreenId=screen.id;
  const age=screen.last_seen?Date.parse(serverTime)-Date.parse(screen.last_seen):Infinity;
  const state=screen.disabled?'Disabled':!screen.last_seen?'Not connected':age>=0&&age<120000?'Online':'Offline';
- const fields=[['Status',state],['Location',screen.location||screen.store_id],['Orientation',screen.display],['Last heartbeat',readableDate(screen.last_seen)],['Player mode',screen.player_mode||'Not reported'],['Playback issue',screen.playback_issue||'None reported'],['Screen ID',screen.id]];
+ const fields=[['Status',state],['Location',screen.location||screen.store_id],['Orientation',screen.display],['Last heartbeat',readableDate(screen.last_seen)],['Now playing',screen.current_media_name||'Awaiting current-media reporting'],['Player mode',screen.player_mode||'Not reported'],['Playback issue',screen.playback_issue||'None reported'],['Screen ID',screen.id]];
  details.innerHTML='<div class="screen-detail-head"><div><small class="muted">SCREEN DETAILS</small><h3>'+esc(screen.label)+'</h3></div><button type="button" id="closeScreenDetails">Close</button></div><div class="screen-detail-grid">'+fields.map(([name,value])=>'<div><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong></div>').join('')+'</div><div class="screen-detail-note"><strong>Recent plays</strong><div id="screenPlaybackHistory" role="status">Loading recent playback…</div></div>';
  details.hidden=false;
  el('closeScreenDetails').addEventListener('click',()=>{details.hidden=true;selectedScreenId=null;++historyRequest});
@@ -67,6 +76,7 @@ async function load(manual=false){
   const data=await call('list');loaded=true;
 
   const now=Date.parse(data.serverTime);
+  renderHealth(data.screens,data.serverTime);
   if(selectedScreenId){const selected=data.screens.find(s=>s.id===selectedScreenId);if(selected)showDetails(selected,data.serverTime);else{details.hidden=true;selectedScreenId=null;}}
   list.innerHTML=data.screens.map(s=>{
    const age=s.last_seen?now-Date.parse(s.last_seen):Infinity;
@@ -118,7 +128,7 @@ function refreshWhenReady(){
 }
 db.auth.onAuthStateChange((event,session)=>{
  if(event==='SIGNED_IN' && session)setTimeout(refreshWhenReady,250);
- if(event==='SIGNED_OUT'){loaded=false;selectedScreenId=null;details.hidden=true;list.innerHTML='<p class="muted">Sign in to view registered screens.</p>';}
+ if(event==='SIGNED_OUT'){if(health)health.innerHTML='';loaded=false;selectedScreenId=null;details.hidden=true;list.innerHTML='<p class="muted">Sign in to view registered screens.</p>';}
 });
 setInterval(refreshWhenReady,5000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshWhenReady();});
