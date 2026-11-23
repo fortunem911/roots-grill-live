@@ -100,7 +100,7 @@
       stage.innerHTML = '<main id="slideshow" class="slideshow" aria-live="off"></main>';
     }
     var script = document.createElement('script');
-    script.src = 'cloud-player.js';
+    script.src = 'cloud-player.js?v=20261123-playback-v1';
     document.body.appendChild(script);
   }
   function setBookmarkUrl(screen) {
