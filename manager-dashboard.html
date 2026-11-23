@@ -18,7 +18,7 @@ async function load(){
  const isOnline=s=>!s.disabled&&s.last_seen&&now-new Date(s.last_seen).getTime()<90000;
  $('storesCount').textContent=stores.length;$('tvCount').textContent=screens.length;
  $('onlineCount').textContent=screens.filter(isOnline).length;$('offlineCount').textContent=screens.filter(s=>!isOnline(s)).length;
- const firstName=String(data.managerName||'').trim().split(/\\s+/)[0];$('greeting').textContent=firstName?'Welcome, '+firstName+'!':'Store Overview';$('userEmail').textContent=data.email||'';
+ const firstName=String(data.managerName||'').trim().split(/\s+/)[0];$('greeting').textContent=firstName?'Welcome, '+firstName+'!':'Store Overview';$('userEmail').textContent=data.email||'';
  $('storeSections').innerHTML=stores.map(store=>{
  const assigned=screens.filter(s=>s.store_id===store.id);
  return '<section class="store"><h2>'+safe(store.name)+'</h2><p class="muted">'+assigned.length+' registered screen(s)</p><div class="screens">'+(assigned.length?assigned.map(s=>'<article class="screen"><h3>'+safe(s.label)+'</h3><p>'+safe(s.location||'No location')+' · '+safe(s.display||'landscape')+'</p><span class="tag '+(s.disabled?'disabled':isOnline(s)?'online':'')+'">'+(s.disabled?'Disabled':isOnline(s)?'Online':'Offline')+'</span><div class="media"><p>Now playing</p><strong>'+safe(s.current_media_name||'No current media reported')+'</strong></div>'+(s.playback_issue?'<p>'+safe(s.playback_issue)+'</p>':'')+'</article>').join(''):'<div class="screen"><p>No TVs assigned yet. Head Office can assign a screen to this store.</p></div>')+'</div></section>';
