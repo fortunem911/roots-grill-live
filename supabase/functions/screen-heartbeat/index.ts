@@ -24,7 +24,8 @@ Deno.serve(async request=>{
     const db=createClient(Deno.env.get('SUPABASE_URL')!,Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,{auth:{persistSession:false}});
     const {data:screen,error}=await db.from('grill_screens').select('id,token_hash,disabled').eq('id',data.screenId).maybeSingle();
     if(error) throw error;
-    if(!screen||screen.disabled||screen.token_hash!==hash) return reply({error:'Unauthorized'},401);
+    if(!screen||screen.token_hash!==hash) return reply({error:'Unauthorized'},401);
+    if(screen.disabled) return reply({error:'Screen disabled by Head Office'},403);
     const clean=(value:unknown,max:number)=>typeof value==='string'?value.slice(0,max):null;
     const {error:updateError}=await db.from('grill_screens').update({
       last_seen:new Date().toISOString(),
