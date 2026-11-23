@@ -77,10 +77,10 @@ Deno.serve(async (request) => {
         return respond({ status: 'expired' });
       if (pair.status !== 'approved') return respond({ status: pair.status });
       const { data: screen, error: screenError } = await db.from('grill_screens')
-        .select('id,label,store_id,display,rotation')
+        .select('id,label,store_id,display,rotation,disabled')
         .eq('id', pair.screen_id).maybeSingle();
       if (screenError) throw screenError;
-      if (!screen || !['landscape','portrait'].includes(screen.display)) return respond({ error: 'Screen unavailable' }, 409);
+      if (!screen || screen.disabled || !['landscape','portrait'].includes(screen.display)) return respond({ error: 'Screen unavailable' }, 409);
       // Device already possesses claimSecret, which is its heartbeat token.
       return respond({ status: 'paired', screen });
     }
@@ -94,9 +94,9 @@ Deno.serve(async (request) => {
           !/^[-a-z0-9]{1,100}$/.test(input.screenId))
         return respond({ error: 'Invalid code or screen ID' }, 400);
       const { data: screen, error: screenError } = await db.from('grill_screens')
-        .select('id,store_id').eq('id', input.screenId).maybeSingle();
+        .select('id,store_id,disabled').eq('id', input.screenId).maybeSingle();
       if (screenError) throw screenError;
-      if (!screen)
+      if (!screen || screen.disabled)
         return respond({ error: 'Screen is not registered for pairing' }, 403);
       const { data: approved, error } = await db.rpc('grill_approve_pairing', {
         p_code_hash: await hash(code),
