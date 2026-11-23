@@ -27,14 +27,16 @@ Deno.serve(async request=>{
     if(!screen||screen.token_hash!==hash) return reply({error:'Unauthorized'},401);
     if(screen.disabled) return reply({error:'Screen disabled by Head Office'},403);
     const clean=(value:unknown,max:number)=>typeof value==='string'?value.slice(0,max):null;
-    const {error:updateError}=await db.from('grill_screens').update({
-      last_seen:new Date().toISOString(),
-      current_media_id:clean(data.mediaId,100),
-      current_media_name:clean(data.mediaName,180),
-      player_mode:clean(data.playerMode,30),
-      playback_issue:clean(data.playbackIssue,180),
-      updated_at:new Date().toISOString()
-    }).eq('id',screen.id);
+    const patch:Record<string,unknown>={last_seen:new Date().toISOString(),updated_at:new Date().toISOString()};
+    if(data.playerMode!==undefined)patch.player_mode=clean(data.playerMode,30);
+    if(data.playbackIssue!==undefined)patch.playback_issue=clean(data.playbackIssue,180);
+    // Preserve last reported media on ordinary heartbeat requests.
+    // Only authenticated playback events can change Now Playing.
+    if(data.playbackEvent && typeof data.playbackEvent.mediaId==='string' && typeof data.playbackEvent.mediaName==='string'){
+      patch.current_media_id=clean(data.playbackEvent.mediaId,100);
+      patch.current_media_name=clean(data.playbackEvent.mediaName,180);
+    }
+    const {error:updateError}=await db.from('grill_screens').update(patch).eq('id',screen.id);
     if(updateError) throw updateError;
     // Optional, explicitly reported playback transition. Ordinary heartbeats
     // do not create history. A unique index deduplicates retries.
