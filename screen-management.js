@@ -7,6 +7,19 @@ const el=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=el('screenManagementStatus'),list=el('screenManagementList'),form=el('newScreenForm');
 let loaded=false;
+const details=el('screenDetailsPanel');
+let selectedScreenId=null;
+const readableDate=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleString():'Never';
+function showDetails(screen,serverTime){
+ selectedScreenId=screen.id;
+ const age=screen.last_seen?Date.parse(serverTime)-Date.parse(screen.last_seen):Infinity;
+ const state=screen.disabled?'Disabled':!screen.last_seen?'Not connected':age>=0&&age<120000?'Online':'Offline';
+ const fields=[['Status',state],['Location',screen.location||screen.store_id],['Orientation',screen.display],['Last heartbeat',readableDate(screen.last_seen)],['Player mode',screen.player_mode||'Not reported'],['Playback issue',screen.playback_issue||'None reported'],['Screen ID',screen.id]];
+ details.innerHTML='<div class="screen-detail-head"><div><small class="muted">SCREEN DETAILS</small><h3>'+esc(screen.label)+'</h3></div><button type="button" id="closeScreenDetails">Close</button></div><div class="screen-detail-grid">'+fields.map(([name,value])=>'<div><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong></div>').join('')+'</div><p class="screen-detail-note"><strong>Recent plays:</strong> Playback event history is not being recorded yet. This panel will show verified play events after tracking is enabled.</p>';
+ details.hidden=false;
+ el('closeScreenDetails').addEventListener('click',()=>{details.hidden=true;selectedScreenId=null});
+}
+
 function setStatus(message,kind='neutral'){status.textContent=message;status.style.color=kind==='success'?'#66e99d':kind==='error'?'#ff8d92':'';}
 async function call(action,fields={}){
  const session=await db.auth.getSession(),token=session.data.session&&session.data.session.access_token;
@@ -22,12 +35,14 @@ async function load(){
   const data=await call('list');loaded=true;
 
   const now=Date.parse(data.serverTime);
+  if(selectedScreenId){const selected=data.screens.find(s=>s.id===selectedScreenId);if(selected)showDetails(selected,data.serverTime);else{details.hidden=true;selectedScreenId=null;}}
   list.innerHTML=data.screens.map(s=>{
    const age=s.last_seen?now-Date.parse(s.last_seen):Infinity;
    const online=!s.disabled&&age>=0&&age<120000;
    const state=s.disabled?'Disabled':!s.last_seen?'Not connected':online?'Online':'Offline';
-   return '<div class="screen-mgmt-row"><div><strong>'+esc(s.label)+'</strong><small>'+esc(s.location||s.store_id)+' · '+esc(s.display)+'</small><small>'+esc(s.id)+'</small></div><div><span class="screen-mgmt-pill '+(online?'online':'')+'">'+esc(state)+'</span><div class="screen-mgmt-actions"><button type="button" data-action="edit" data-id="'+esc(s.id)+'">Edit</button><button type="button" data-action="toggle" data-id="'+esc(s.id)+'">'+(s.disabled?'Enable':'Disable')+'</button><button type="button" data-action="remove" data-id="'+esc(s.id)+'">Remove</button></div></div></div>';
+   return '<div class="screen-mgmt-row"><div><button type="button" class="screen-mgmt-name" data-details="'+esc(s.id)+'">'+esc(s.label)+'</button><small>'+esc(s.location||s.store_id)+' · '+esc(s.display)+'</small><small>'+esc(s.id)+'</small></div><div><span class="screen-mgmt-pill '+(online?'online':'')+'">'+esc(state)+'</span><div class="screen-mgmt-actions"><button type="button" data-action="edit" data-id="'+esc(s.id)+'">Edit</button><button type="button" data-action="toggle" data-id="'+esc(s.id)+'">'+(s.disabled?'Enable':'Disable')+'</button><button type="button" data-action="remove" data-id="'+esc(s.id)+'">Remove</button></div></div></div>';
   }).join('')||'<p class="muted">No screens registered.</p>';
+  list.querySelectorAll('[data-details]').forEach(button=>button.addEventListener('click',()=>{const selected=data.screens.find(s=>s.id===button.dataset.details);if(selected)showDetails(selected,data.serverTime);}));
   list.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',async()=>{
    const screen=data.screens.find(s=>s.id===button.dataset.id);if(!screen)return;
    let action=button.dataset.action,fields={screenId:screen.id};
