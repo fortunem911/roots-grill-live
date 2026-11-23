@@ -1,4 +1,4 @@
-// ROOTS_GRILL_SCREEN_MANAGEMENT_V2
+// ROOTS_GRILL_SCREEN_MANAGEMENT_V3
 // Deploy as Supabase Edge Function "screen-management" with legacy JWT verification OFF.
 // Head Office authorization is checked on every request.
 import { createClient } from 'npm:@supabase/supabase-js@2';
@@ -51,11 +51,9 @@ Deno.serve(async req=>{
   }
   if(body.action==='remove'){
    if(typeof body.screenId!=='string'||!/^[-a-z0-9]{1,100}$/.test(body.screenId))return reply({error:'Invalid screen'},400);
-   const {data:screen,error:readError}=await db.from('grill_screens').select('id,token_hash').eq('id',body.screenId).maybeSingle();
-   if(readError)throw readError;if(!screen)return reply({error:'Screen not found'},404);
-   if(screen.token_hash)return reply({error:'Paired screen cannot be removed. Disable it instead.'},409);
-   const {error}=await db.from('grill_screens').delete().eq('id',body.screenId);
-   if(error)throw error;return reply({ok:true});
+   const {data:removed,error}=await db.rpc('grill_remove_screen',{p_screen_id:body.screenId});
+   if(error)throw error;if(!removed)return reply({error:'Screen not found'},404);
+   return reply({ok:true});
   }
   return reply({error:'Unknown action'},400);
  }catch(error){console.error('Screen management:',error);return reply({error:'Screen management service unavailable'},503);}
