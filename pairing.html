@@ -16,6 +16,7 @@ button{border:0;border-radius:12px;background:#d71920;color:white;padding:14px 2
 button:disabled{opacity:.5;cursor:wait}#status{min-height:24px;white-space:pre-wrap;margin-top:18px}
 .info{padding:15px;background:#1d2027;border-radius:12px;color:#c3c6ce;font-size:14px;line-height:1.6}
 #authWarning{border-color:#d71920}footer{margin-top:28px;color:#9da2ae;font-size:13px}
+body.embedded main{max-width:none;padding:20px 18px 30px}body.embedded header{display:none}body.embedded h1{font-size:30px}body.embedded .panel{margin-top:14px}body.embedded footer{display:none}
 </style></head><body><main>
 <header><div class="logo">RG / ROOTS GRILL CLOUD</div><a href="dashboard.html">← Back to dashboard</a></header>
 <p class="eyebrow">HEAD OFFICE · DEVICE MANAGEMENT</p><h1>Pair a screen</h1>
@@ -41,6 +42,7 @@ button:disabled{opacity:.5;cursor:wait}#status{min-height:24px;white-space:pre-w
 <script>
 (function(){
 'use strict';
+if(new URLSearchParams(location.search).get('embedded')==='1')document.body.classList.add('embedded');
 var url='https://zvezbdoghzbrsvxazfwo.supabase.co';
 var key='sb_publishable_IpUt3RpCm0f9Hlyiy_lRkA_GOuhS1pO';
 var db=window.supabase.createClient(url,key);
