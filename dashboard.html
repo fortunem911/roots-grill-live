@@ -1168,7 +1168,17 @@
         .screen-mgmt-fields label{display:grid;gap:8px;color:#c9cdd5;font-size:13px;font-weight:700}
         .screen-mgmt-fields input,.screen-mgmt-fields select{width:100%;min-width:0;background:#090b0f;color:white;border:1px solid #424650;border-radius:11px;padding:12px;font:inherit}
         .screen-mgmt-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-bottom:1px solid var(--line)}
-        .screen-mgmt-row:last-child{border-bottom:0}.screen-mgmt-row>div{display:grid;gap:5px}.screen-mgmt-row small{color:var(--muted);font-size:12px}
+        .screen-mgmt-row:last-child{border-bottom:0}
+        .screen-mgmt-name{background:none;border:0;color:#fff;font:inherit;font-weight:800;text-align:left;padding:0;cursor:pointer;text-decoration:underline;text-decoration-color:#555;text-underline-offset:4px}
+        .screen-mgmt-name:hover{color:#ff858b}
+        .screen-detail-panel{border:1px solid #444852;border-radius:16px;background:#11141b;padding:20px;margin:12px 0 20px}
+        .screen-detail-panel[hidden]{display:none}
+        .screen-detail-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+        .screen-detail-head button{border:1px solid #555;background:#232630;color:white;border-radius:8px;padding:8px 12px;cursor:pointer}
+        .screen-detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:18px}
+        .screen-detail-grid>div{border:1px solid #30343d;border-radius:10px;padding:12px;overflow-wrap:anywhere}
+        .screen-detail-grid small{display:block;color:#aab0ba;margin-bottom:7px}
+        .screen-detail-note{color:#aab0ba;font-size:13px;line-height:1.6;margin-top:16px}.screen-mgmt-row>div{display:grid;gap:5px}.screen-mgmt-row small{color:var(--muted);font-size:12px}
         .screen-mgmt-row>div:last-child{text-align:right}.screen-mgmt-actions{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:7px}.screen-mgmt-actions button{border:1px solid #454750;background:#20232a;color:#fff;border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px}.screen-mgmt-actions button:hover{border-color:#ff6d77}.screen-mgmt-pill{display:inline-block;color:#b9bec9;background:#252830;border-radius:99px;padding:5px 10px;font-size:12px;font-weight:800}.screen-mgmt-pill.online{background:#123723;color:#66e99d}
         @media(max-width:800px){.screen-mgmt-fields{grid-template-columns:1fr}.screen-mgmt-row{align-items:flex-start}}
         </style>
@@ -1177,7 +1187,7 @@
         <label>Location<input id="newScreenLocation" placeholder="e.g. Head Office — Downstairs Boardroom" maxlength="120" minlength="2" required></label>
         <label>Orientation<select id="newScreenDisplay" required><option value="landscape">Landscape</option><option value="portrait">Portrait</option></select></label>
         </div><button class="primary-button" id="createScreenButton" type="submit" style="margin-top:18px">Add screen</button></form></div>
-        <div class="screen-mgmt-panel"><p class="kicker">REGISTERED SCREENS</p><div id="screenManagementList"><p class="muted">Select Refresh screens to load devices.</p></div><p class="muted" id="screenManagementStatus" role="status" style="margin-top:16px"></p></div>
+        <div class="screen-mgmt-panel"><p class="kicker">REGISTERED SCREENS</p><div id="screenDetailsPanel" class="screen-detail-panel" hidden aria-live="polite"></div><div id="screenManagementList"><p class="muted">Select Refresh screens to load devices.</p></div><p class="muted" id="screenManagementStatus" role="status" style="margin-top:16px"></p></div>
       </section>
       <section id="pair-screens" class="section-block">
         <div class="section-heading-row">
@@ -1197,6 +1207,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="cloud-dashboard.js?v=20261117-upload-recovery-2"></script>
-  <script src="screen-management.js?v=20261123-v4"></script>
+  <script src="screen-management.js?v=20261123-details-v1"></script>
 </body>
 </html>
