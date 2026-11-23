@@ -19,21 +19,23 @@ button:disabled{opacity:.5;cursor:wait}#status{min-height:24px;white-space:pre-w
 </style></head><body><main>
 <header><div class="logo">RG / ROOTS GRILL CLOUD</div><a href="dashboard.html">← Back to dashboard</a></header>
 <p class="eyebrow">HEAD OFFICE · DEVICE MANAGEMENT</p><h1>Pair a screen</h1>
-<p class="muted">Approve a temporary code displayed on a Home Test TV. Only authorized Head Office administrators can approve pairing.</p>
+<p class="muted">Approve a temporary code displayed on a registered Roots Grill TV. Only authorized Head Office administrators can approve pairing.</p>
 <section class="panel" id="authWarning" hidden><h2>Sign in required</h2><p>Open the dashboard, sign in with your Head Office account, then return here.</p><a href="dashboard.html">Go to dashboard</a></section>
 <section class="panel" id="pairPanel" hidden>
-<div class="eyebrow">HOME TEST · V1.1</div><h2>Approve TV connection</h2>
-<div class="info">1. Open the pairing screen on your home TV.<br>2. Enter the 10-character code shown on the TV.<br>3. Select the correct registered Home Test screen.<br>4. Approve. The TV will confirm pairing when it polls the service.</div>
+<div class="eyebrow">SCREEN REGISTRATION · V1.2</div><h2>Approve TV connection</h2>
+<div class="info">1. Open the pairing screen on the TV you want to register.<br>2. Enter the 10-character code shown on the TV.<br>3. Select the correct registered screen.<br>4. Approve. The TV will confirm pairing when it polls the service.</div>
 <form id="pairForm">
 <label for="pairCode">TV pairing code</label><input id="pairCode" maxlength="14" minlength="10" placeholder="ENTER 10-CHARACTER CODE" autocomplete="off" spellcheck="false" required>
 <label for="screenId">Registered screen</label><select id="screenId" required>
+<option value="roots-grill-landscape-01">HO TV 01 — Landscape</option>
+<option value="roots-grill-portrait-01">HO TV 02 — Portrait</option>
 <option value="home-landscape-01">Home TV 01 — Landscape</option>
 <option value="home-portrait-01">Home TV 02 — Portrait</option>
 </select>
 <button id="approveButton" type="submit">Approve screen pairing</button>
 <p id="status" role="status" aria-live="polite"></p>
 </form></section>
-<footer>Test rollout only. Existing Head Office work TV links and playback are unchanged.</footer>
+<footer>Activation rollout. Existing work TV links and playback remain unchanged.</footer>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
@@ -58,7 +60,7 @@ form.addEventListener('submit',async function(e){
  var code=document.getElementById('pairCode').value.toUpperCase().replace(/\s/g,'');
  var screenId=document.getElementById('screenId').value;
  if(!/^[A-HJ-NP-Z2-9]{10}$/.test(code)){status.textContent='Check the 10-character code shown on the TV.';return}
- if(!/^home-(landscape|portrait)-01$/.test(screenId))return;
+ if(!/^(home-(landscape|portrait)-01|roots-grill-(landscape|portrait)-01)$/.test(screenId))return;
  button.disabled=true;status.textContent='Checking Head Office authorization…';
  try{
   if(!await verify())throw Error('Your Head Office session has expired. Sign in again.');
