@@ -58,7 +58,7 @@
     var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
     var timer = controller ? setTimeout(function () { controller.abort(); }, 10000) : null;
     try {
-      var response = await fetch(base + (action === 'heartbeat' ? 'super-responder' : 'device-pairing'), {
+      var response = await fetch(base + (action === 'heartbeat' ? 'screen-heartbeat' : 'device-pairing'), {
         method: 'POST', headers: headers, body: JSON.stringify(body),
         signal: controller ? controller.signal : undefined, cache: 'no-store'
       });
