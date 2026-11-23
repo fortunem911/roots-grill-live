@@ -46,6 +46,7 @@ var db=window.supabase.createClient(url,key);
 var form=document.getElementById('pairForm'),status=document.getElementById('status'),button=document.getElementById('approveButton');
 var panel=document.getElementById('pairPanel'),warning=document.getElementById('authWarning');
 var managedScreens=[];
+function setStatus(message,kind){status.textContent=message;status.style.color=kind==='success'?'#66e99d':kind==='error'?'#ff8d92':'#b9bcc6';}
 async function loadScreens(){
  try{
   var session=await db.auth.getSession(),token=session.data.session&&session.data.session.access_token;
@@ -56,9 +57,9 @@ async function loadScreens(){
   managedScreens=result.screens;
   var select=document.getElementById('screenId'),selected=select.value;
   select.replaceChildren();
-  var placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a registered screen…';placeholder.disabled=true;select.appendChild(placeholder);
+  var placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a registered screen…';placeholder.disabled=true;placeholder.selected=true;select.appendChild(placeholder);
   result.screens.forEach(function(screen){var opt=document.createElement('option');opt.value=screen.id;opt.textContent=screen.label+' — '+screen.store_id+' / '+screen.display;select.appendChild(opt)});
-  if(result.screens.some(function(screen){return screen.id===selected}))select.value=selected;else select.value='';
+  if(result.screens.some(function(screen){return screen.id===selected}))select.value=selected;else {select.value='';placeholder.selected=true;}
  }catch(e){console.warn('Could not load managed screens:',e)}
 }
 window.addEventListener('message',function(e){if(e.origin===location.origin&&e.data&&e.data.type==='roots-grill-screens-changed')loadScreens()});
@@ -72,22 +73,22 @@ async function verify(){
  }catch(e){panel.hidden=true;warning.hidden=false;return false}
 }
 form.addEventListener('submit',async function(e){
- e.preventDefault();status.textContent='';
+ e.preventDefault();setStatus('','neutral');
  var code=document.getElementById('pairCode').value.toUpperCase().replace(/\s/g,'');
  var screenId=document.getElementById('screenId').value;
- if(!/^[A-HJ-NP-Z2-9]{10}$/.test(code)){status.textContent='Check the 10-character code shown on the TV.';return}
- if(!/^[-a-z0-9]{1,100}$/.test(screenId)){status.textContent='Select the registered screen first.';return}
+ if(!/^[A-HJ-NP-Z2-9]{10}$/.test(code)){setStatus('Check the 10-character code shown on the TV.','error');return}
+ if(!/^[-a-z0-9]{1,100}$/.test(screenId)){setStatus('Select the registered screen first.','error');return}
  // Re-read screen details immediately before confirmation; the dropdown alone never changes pairing.
  await loadScreens();
  var chosen=managedScreens.find(function(s){return s.id===screenId});
- if(!chosen){status.textContent='Screen is no longer available. Select another screen.';return}
- if(chosen.disabled){status.textContent='This screen is disabled. Enable it before pairing.';return}
+ if(!chosen){setStatus('Screen is no longer available. Select another screen.','error');return}
+ if(chosen.disabled){setStatus('This screen is disabled. Enable it before pairing.','error');return}
  var recentlySeen=chosen.last_seen&&Date.now()-Date.parse(chosen.last_seen)<120000;
  var details='FINAL PAIRING REVIEW\\n\\nScreen: '+chosen.label+'\\nLocation: '+(chosen.location||chosen.store_id)+'\\nOrientation: '+chosen.display+'\\nCode: '+code.slice(0,5)+' '+code.slice(5);
  if(recentlySeen)details+='\\n\\nWARNING: This screen is ONLINE. Approving a different TV may disconnect the current player.';
  details+='\\n\\nApprove pairing for this exact screen?';
- if(!window.confirm(details)){status.textContent='Pairing cancelled. No changes were made.';return}
- button.disabled=true;status.textContent='Checking Head Office authorization…';
+ if(!window.confirm(details)){setStatus('Pairing cancelled. No changes were made.','neutral');return}
+ button.disabled=true;setStatus('Checking Head Office authorization…','neutral');
  try{
   if(!await verify())throw Error('Your Head Office session has expired. Sign in again.');
   var session=await db.auth.getSession();
@@ -99,9 +100,9 @@ form.addEventListener('submit',async function(e){
   });
   var result=await response.json().catch(function(){return{}});
   if(!response.ok||!result.ok)throw Error(result.error||'Approval failed (HTTP '+response.status+')');
-  status.style.color='#42d67d';status.textContent='✓ Approved '+screenId+'. The TV can now complete pairing.';
-  form.reset();
- }catch(err){status.style.color='#ff8d92';status.textContent=err.message||String(err)}
+  setStatus('✓ Approved '+screenId+'. The TV can now complete pairing.','success');
+  form.reset();document.getElementById('screenId').value='';
+ }catch(err){setStatus(err.message||String(err),'error')}
  finally{button.disabled=false}
 });
 verify();
