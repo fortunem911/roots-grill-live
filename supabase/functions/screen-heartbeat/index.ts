@@ -36,6 +36,30 @@ Deno.serve(async request=>{
       updated_at:new Date().toISOString()
     }).eq('id',screen.id);
     if(updateError) throw updateError;
+    // Optional, explicitly reported playback transition. Ordinary heartbeats
+    // do not create history. A unique index deduplicates retries.
+    if(data.playbackEvent!==undefined && data.playbackEvent!==null) {
+      const event=data.playbackEvent;
+      const validId=typeof event.mediaId==='string' && event.mediaId.length>0 && event.mediaId.length<=100;
+      const validName=typeof event.mediaName==='string' && event.mediaName.length>0 && event.mediaName.length<=180;
+      const validStart=typeof event.startedAt==='string' && !Number.isNaN(Date.parse(event.startedAt));
+      const started=validStart?Date.parse(event.startedAt):NaN;
+      const validTime=validStart && started<=Date.now()+60000 && started>=Date.now()-86400000;
+      const duration=event.durationMs==null?null:event.durationMs;
+      const validDuration=duration===null || (Number.isInteger(duration) && duration>=0 && duration<=86400000);
+      if(!validId || !validName || !validTime || !validDuration) return reply({error:'Invalid playback event'},400);
+      const {error:historyError}=await db.from('grill_playback_events').upsert({
+        screen_id:screen.id,
+        media_id:event.mediaId,
+        media_name:event.mediaName,
+        started_at:new Date(started).toISOString(),
+        duration_ms:duration
+      },{onConflict:'screen_id,media_id,started_at',ignoreDuplicates:true});
+      if(historyError) {
+        console.error('playback history write error',historyError);
+        return reply({error:'Playback history temporarily unavailable'},503);
+      }
+    }
     return reply({ok:true});
   } catch(error) {
     console.error('heartbeat error',error);
