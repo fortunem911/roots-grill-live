@@ -23,15 +23,12 @@ body.embedded main{max-width:none;padding:20px 18px 30px}body.embedded header{di
 <p class="muted">Approve a temporary code displayed on a registered Roots Grill TV. Only authorized Head Office administrators can approve pairing.</p>
 <section class="panel" id="authWarning" hidden><h2>Sign in required</h2><p>Open the dashboard, sign in with your Head Office account, then return here.</p><a href="dashboard.html">Go to dashboard</a></section>
 <section class="panel" id="pairPanel" hidden>
-<div class="eyebrow">SCREEN REGISTRATION · V1.2</div><h2>Approve TV connection</h2>
+<div class="eyebrow">SCREEN REGISTRATION · SAFE PAIRING V2</div><h2>Approve TV connection</h2>
 <div class="info">1. Open the pairing screen on the TV you want to register.<br>2. Enter the 10-character code shown on the TV.<br>3. Select the correct registered screen.<br>4. Approve. The TV will confirm pairing when it polls the service.</div>
 <form id="pairForm">
 <label for="pairCode">TV pairing code</label><input id="pairCode" maxlength="14" minlength="10" placeholder="ENTER 10-CHARACTER CODE" autocomplete="off" spellcheck="false" required>
 <label for="screenId">Registered screen</label><select id="screenId" required>
-<option value="roots-grill-landscape-01">HO TV 01 — Landscape</option>
-<option value="roots-grill-portrait-01">HO TV 02 — Portrait</option>
-<option value="home-landscape-01">Home TV 01 — Landscape</option>
-<option value="home-portrait-01">Home TV 02 — Portrait</option>
+<option value="" selected disabled>Choose a registered screen…</option>
 </select>
 <button id="approveButton" type="submit">Approve screen pairing</button>
 <p id="status" role="status" aria-live="polite"></p>
@@ -48,6 +45,7 @@ var key='sb_publishable_IpUt3RpCm0f9Hlyiy_lRkA_GOuhS1pO';
 var db=window.supabase.createClient(url,key);
 var form=document.getElementById('pairForm'),status=document.getElementById('status'),button=document.getElementById('approveButton');
 var panel=document.getElementById('pairPanel'),warning=document.getElementById('authWarning');
+var managedScreens=[];
 async function loadScreens(){
  try{
   var session=await db.auth.getSession(),token=session.data.session&&session.data.session.access_token;
@@ -55,10 +53,12 @@ async function loadScreens(){
   var response=await fetch(url+'/functions/v1/screen-management',{method:'POST',headers:{'content-type':'application/json','apikey':key,'authorization':'Bearer '+token},body:JSON.stringify({action:'list'})});
   if(!response.ok)return;
   var result=await response.json();if(!result.ok||!Array.isArray(result.screens))return;
+  managedScreens=result.screens;
   var select=document.getElementById('screenId'),selected=select.value;
   select.replaceChildren();
+  var placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a registered screen…';placeholder.disabled=true;select.appendChild(placeholder);
   result.screens.forEach(function(screen){var opt=document.createElement('option');opt.value=screen.id;opt.textContent=screen.label+' — '+screen.store_id+' / '+screen.display;select.appendChild(opt)});
-  if(result.screens.some(function(screen){return screen.id===selected}))select.value=selected;
+  if(result.screens.some(function(screen){return screen.id===selected}))select.value=selected;else select.value='';
  }catch(e){console.warn('Could not load managed screens:',e)}
 }
 window.addEventListener('message',function(e){if(e.origin===location.origin&&e.data&&e.data.type==='roots-grill-screens-changed')loadScreens()});
@@ -76,7 +76,17 @@ form.addEventListener('submit',async function(e){
  var code=document.getElementById('pairCode').value.toUpperCase().replace(/\s/g,'');
  var screenId=document.getElementById('screenId').value;
  if(!/^[A-HJ-NP-Z2-9]{10}$/.test(code)){status.textContent='Check the 10-character code shown on the TV.';return}
- if(!/^[-a-z0-9]{1,100}$/.test(screenId))return;
+ if(!/^[-a-z0-9]{1,100}$/.test(screenId)){status.textContent='Select the registered screen first.';return}
+ // Re-read screen details immediately before confirmation; the dropdown alone never changes pairing.
+ await loadScreens();
+ var chosen=managedScreens.find(function(s){return s.id===screenId});
+ if(!chosen){status.textContent='Screen is no longer available. Select another screen.';return}
+ if(chosen.disabled){status.textContent='This screen is disabled. Enable it before pairing.';return}
+ var recentlySeen=chosen.last_seen&&Date.now()-Date.parse(chosen.last_seen)<120000;
+ var details='FINAL PAIRING REVIEW\\n\\nScreen: '+chosen.label+'\\nLocation: '+(chosen.location||chosen.store_id)+'\\nOrientation: '+chosen.display+'\\nCode: '+code.slice(0,5)+' '+code.slice(5);
+ if(recentlySeen)details+='\\n\\nWARNING: This screen is ONLINE. Approving a different TV may disconnect the current player.';
+ details+='\\n\\nApprove pairing for this exact screen?';
+ if(!window.confirm(details)){status.textContent='Pairing cancelled. No changes were made.';return}
  button.disabled=true;status.textContent='Checking Head Office authorization…';
  try{
   if(!await verify())throw Error('Your Head Office session has expired. Sign in again.');
