@@ -9,6 +9,7 @@
   var pendingKey = 'roots-grill-universal-pending-v1';
   var portrait = false;
   var pairingTimer = null, heartbeatTimer = null, working = false;
+  var pendingPlays = [], heartbeatNow = null;
   var overlay = document.createElement('section');
   overlay.id = 'rootsPairingOverlay';
   overlay.setAttribute('aria-live', 'polite');
@@ -111,6 +112,13 @@
       window.history.replaceState(null, '', url.pathname + url.search + url.hash);
     } catch (e) { console.warn('Could not update TV bookmark URL:', e); }
   }
+  window.addEventListener('roots-grill-media-started', function(event) {
+    var item = event.detail;
+    if (!screenId || !item || !item.mediaId || !item.startedAt) return;
+    pendingPlays.push(item);
+    if (pendingPlays.length > 100) pendingPlays.shift();
+    if (heartbeatNow) heartbeatNow();
+  });
   function startHeartbeat(token, screen) {
     screenId = screen.id;
     startPlayer(screen);
@@ -119,11 +127,15 @@
     async function beat() {
       if (inFlight || !navigator.onLine) return;
       inFlight = true;
+      var play = pendingPlays.length ? pendingPlays[0] : null;
       try {
-        // The heartbeat service accepts optional media context; never invent playback details.
-        await request('heartbeat', { screenId: screenId }, token);
+        var body = {screenId:screenId};
+        if (play) body.playbackEvent = play;
+        await request('heartbeat', body, token);
+        if (play && pendingPlays[0] === play) pendingPlays.shift();
         overlay.hidden = true;
         setBookmarkUrl(screen);
+        if (pendingPlays.length) setTimeout(beat, 100);
       } catch (e) {
         if (e.status === 403) {
           // Temporarily disabled: keep the device's token, and retry on the next heartbeat.
@@ -136,6 +148,8 @@
           clearInterval(heartbeatTimer);
           heartbeatTimer = null;
           remove(storageKey);
+          pendingPlays = [];
+          heartbeatNow = null;
           try { var cleanUrl = new URL(window.location.href); cleanUrl.searchParams.delete('screen'); window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash); } catch (_) {}
           playerStarted = false;
           document.getElementById('universalStage').innerHTML = '';
@@ -146,6 +160,7 @@
         }
       } finally { inFlight = false; }
     }
+    heartbeatNow = beat;
     beat();
     heartbeatTimer = setInterval(beat, 30000);
   }
