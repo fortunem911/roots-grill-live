@@ -125,7 +125,14 @@
         overlay.hidden = true;
         setBookmarkUrl(screen);
       } catch (e) {
-        if (e.status === 401 || e.status === 403) {
+        if (e.status === 403) {
+          // Temporarily disabled: keep the device's token, and retry on the next heartbeat.
+          overlay.hidden = false;
+          title.textContent = 'Screen disabled';
+          message.textContent = 'This display has been paused by Head Office. It will resume when enabled.';
+          codeEl.hidden = true;
+          retry.hidden = true;
+        } else if (e.status === 401) {
           clearInterval(heartbeatTimer);
           heartbeatTimer = null;
           remove(storageKey);
