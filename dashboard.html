@@ -1015,7 +1015,7 @@
         <a class="nav-link active" href="#overview"><span>01</span>Overview</a>
         <a class="nav-link" href="#upload"><span>02</span>Upload media</a>
         <a class="nav-link" href="#library"><span>03</span>Media library</a>
-        <a class="nav-link" href="pairing.html"><span>04</span>Pair screens</a>
+        <a class="nav-link" href="#pair-screens"><span>04</span>Pair screens</a>
       </nav>
 
       <div class="sidebar-bottom">
@@ -1156,6 +1156,20 @@
           <h3>No media uploaded yet</h3>
           <p>Your uploaded artwork will appear here.</p>
         </div>
+      </section>
+
+      <section id="pair-screens" class="section-block">
+        <div class="section-heading-row">
+          <div>
+            <p class="kicker">DEVICE MANAGEMENT</p>
+            <h2>Pair screens</h2>
+            <p class="muted">Approve a new TV directly from Head Office. The TV displays a one-time code; choose its registered screen below.</p>
+          </div>
+        </div>
+        <div style="border:1px solid var(--line);border-radius:20px;overflow:hidden;background:#090a0d">
+          <iframe id="pairingFrame" title="Head Office TV pairing approval" src="pairing.html?embedded=1" loading="lazy" style="display:block;width:100%;height:680px;border:0;background:#090a0d" referrerpolicy="same-origin"></iframe>
+        </div>
+        <p class="muted" style="font-size:.85rem;margin-top:12px">Screen approval is restricted to signed-in Head Office administrators. The existing work TV playback links remain unchanged.</p>
       </section>
     </main>
   </div>
