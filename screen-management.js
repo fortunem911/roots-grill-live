@@ -32,7 +32,7 @@ async function loadHistory(id){
   const result=await call('history',{screenId:id});
   if(requestId!==historyRequest||selectedScreenId!==id)return;
   const target=el('screenPlaybackHistory');if(!target)return;
-  target.innerHTML=result.events.length?result.events.map(e=>'<div style="padding:10px 0;border-bottom:1px solid #30343d"><strong>'+esc(e.media_name)+'</strong><small style="display:block;color:#aab0ba;margin-top:5px">Started: '+esc(readableDate(e.started_at))+' · Duration: '+esc(durationLabel(e.duration_ms))+'</small></div>').join(''):'<p class="muted">No playback events recorded for this screen yet.</p>';
+  target.innerHTML=result.events.length?result.events.slice(0,9).map(e=>'<div style="padding:10px 0;border-bottom:1px solid #30343d"><strong>'+esc(e.media_name)+'</strong><small style="display:block;color:#aab0ba;margin-top:5px">Started: '+esc(readableDate(e.started_at))+' · Duration: '+esc(durationLabel(e.duration_ms))+'</small></div>').join(''):'<p class="muted">No playback events recorded for this screen yet.</p>';
  }catch(e){if(requestId===historyRequest){const target=el('screenPlaybackHistory');if(target)target.textContent='Playback history unavailable: '+e.message;}}
 }
 
