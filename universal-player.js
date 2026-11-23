@@ -40,29 +40,6 @@
     '';
   document.head.appendChild(style);
   document.body.appendChild(overlay);
-  // Device-local switching: never deletes a registered screen or revokes its server token.
-  var switchButton = document.createElement('button');
-  switchButton.id = 'rgSwitchScreen';
-  switchButton.type = 'button';
-  switchButton.textContent = 'Switch screen';
-  switchButton.setAttribute('aria-label', 'Switch this browser to another registered screen');
-  switchButton.style.cssText = 'position:fixed;top:14px;right:14px;z-index:1000001;border:1px solid #62646d;border-radius:10px;background:#17191edc;color:#fff;padding:10px 14px;font:700 13px Arial,system-ui,sans-serif;cursor:pointer;';
-  document.body.appendChild(switchButton);
-  function updateSwitchButton() {
-    var current = read(storageKey);
-    switchButton.hidden = !(current && current.screen && current.screen.id);
-    if (!switchButton.hidden) switchButton.title = 'Currently paired: ' + (current.screen.label || current.screen.id);
-  }
-  switchButton.addEventListener('click', function () {
-    var current = read(storageKey);
-    if (!current || !current.screen) return;
-    var label = current.screen.label || current.screen.id;
-    if (!window.confirm('Switch this browser from ' + label + '?\\n\\nThis only clears pairing on this browser. It does not delete the screen or disconnect another TV.')) return;
-    remove(storageKey);
-    remove(pendingKey);
-    window.location.reload();
-  });
-  updateSwitchButton();
   var title = document.getElementById('rgPairTitle');
   var codeEl = document.getElementById('rgPairCode');
   var message = document.getElementById('rgPairMessage');
@@ -159,7 +136,6 @@
           clearInterval(heartbeatTimer);
           heartbeatTimer = null;
           remove(storageKey);
-          updateSwitchButton();
           try { var cleanUrl = new URL(window.location.href); cleanUrl.searchParams.delete('screen'); window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash); } catch (_) {}
           playerStarted = false;
           document.getElementById('universalStage').innerHTML = '';
@@ -212,8 +188,7 @@
             if (!save(storageKey, { token: pending.claimSecret, screen: result.screen }))
               throw Error('Unable to remember this device. Check browser storage.');
             remove(pendingKey);
-            updateSwitchButton();
-            title.textContent = 'Screen approved!';
+              title.textContent = 'Screen approved!';
             message.textContent = 'Connecting to live monitoring…';
             codeEl.hidden = true;
             startHeartbeat(pending.claimSecret, result.screen);
