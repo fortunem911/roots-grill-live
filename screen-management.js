@@ -8,6 +8,17 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const status=el('screenManagementStatus'),list=el('screenManagementList'),form=el('newScreenForm');
 let loaded=false;
 let loading=false;
+const refreshButton=el('refreshScreensButton');
+let refreshFeedbackTimer=null;
+function refreshVisual(state){
+ if(!refreshButton)return;
+ refreshButton.classList.toggle('rg-refresh-loading',state==='loading');
+ refreshButton.classList.toggle('rg-refresh-success',state==='success');
+ refreshButton.classList.toggle('rg-refresh-error',state==='error');
+ refreshButton.disabled=state==='loading';
+ refreshButton.textContent=state==='loading'?'⟳ Refreshing…':state==='success'?'✓ Updated':state==='error'?'! Retry refresh':'⟳ Refresh screens';
+}
+
 let lastLoadAt=0;
 const details=el('screenDetailsPanel');
 let selectedScreenId=null;
@@ -26,15 +37,16 @@ async function loadHistory(id){
 }
 
 const readableDate=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleString():'Never';
-function showDetails(screen,serverTime){
+function showDetails(screen,serverTime,scrollToPanel=false){
  selectedScreenId=screen.id;
  const age=screen.last_seen?Date.parse(serverTime)-Date.parse(screen.last_seen):Infinity;
  const state=screen.disabled?'Disabled':!screen.last_seen?'Not connected':age>=0&&age<120000?'Online':'Offline';
  const fields=[['Status',state],['Location',screen.location||screen.store_id],['Orientation',screen.display],['Last heartbeat',readableDate(screen.last_seen)],['Player mode',screen.player_mode||'Not reported'],['Playback issue',screen.playback_issue||'None reported'],['Screen ID',screen.id]];
- details.innerHTML='<div class="screen-detail-head"><div><small class="muted">SCREEN DETAILS</small><h3>'+esc(screen.label)+'</h3></div><button type="button" id="closeScreenDetails">Close</button></div><div class="screen-detail-grid">'+fields.map(([name,value])=>'<div><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong></div>').join('')+'</div><p class="screen-detail-note"><strong>Recent plays:</strong> Playback event history is not being recorded yet. This panel will show verified play events after tracking is enabled.</p>';
+ details.innerHTML='<div class="screen-detail-head"><div><small class="muted">SCREEN DETAILS</small><h3>'+esc(screen.label)+'</h3></div><button type="button" id="closeScreenDetails">Close</button></div><div class="screen-detail-grid">'+fields.map(([name,value])=>'<div><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong></div>').join('')+'</div><div class="screen-detail-note"><strong>Recent plays</strong><div id="screenPlaybackHistory" role="status">Loading recent playback…</div></div>';
  details.hidden=false;
  el('closeScreenDetails').addEventListener('click',()=>{details.hidden=true;selectedScreenId=null;++historyRequest});
  loadHistory(screen.id);
+ if(scrollToPanel)requestAnimationFrame(()=>details.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth',block:'start'}));
 }
 
 function setStatus(message,kind='neutral'){status.textContent=message;status.style.color=kind==='success'?'#66e99d':kind==='error'?'#ff8d92':'';}
@@ -46,9 +58,10 @@ async function call(action,fields={}){
  if(!res.ok||!data.ok)throw Error(data.error||'Screen management HTTP '+res.status);
  return data;
 }
-async function load(){
+async function load(manual=false){
  if(loading || document.getElementById('dashboardView').hidden || document.hidden)return;
  loading=true;
+ if(manual){clearTimeout(refreshFeedbackTimer);refreshVisual('loading');}
  setStatus('Loading registered screens…');
  try{
   const data=await call('list');loaded=true;
@@ -61,7 +74,7 @@ async function load(){
    const state=s.disabled?'Disabled':!s.last_seen?'Not connected':online?'Online':'Offline';
    return '<div class="screen-mgmt-row"><div><button type="button" class="screen-mgmt-name" data-details="'+esc(s.id)+'">'+esc(s.label)+'</button><small>'+esc(s.location||s.store_id)+' · '+esc(s.display)+'</small><small>'+esc(s.id)+'</small></div><div><span class="screen-mgmt-pill '+(online?'online':'')+'">'+esc(state)+'</span><div class="screen-mgmt-actions"><button type="button" data-action="edit" data-id="'+esc(s.id)+'">Edit</button><button type="button" data-action="toggle" data-id="'+esc(s.id)+'">'+(s.disabled?'Enable':'Disable')+'</button><button type="button" data-action="remove" data-id="'+esc(s.id)+'">Remove</button></div></div></div>';
   }).join('')||'<p class="muted">No screens registered.</p>';
-  list.querySelectorAll('[data-details]').forEach(button=>button.addEventListener('click',()=>{const selected=data.screens.find(s=>s.id===button.dataset.details);if(selected)showDetails(selected,data.serverTime);}));
+  list.querySelectorAll('[data-details]').forEach(button=>button.addEventListener('click',()=>{const selected=data.screens.find(s=>s.id===button.dataset.details);if(selected)showDetails(selected,data.serverTime,true);}));
   list.querySelectorAll('[data-action]').forEach(button=>button.addEventListener('click',async()=>{
    const screen=data.screens.find(s=>s.id===button.dataset.id);if(!screen)return;
    let action=button.dataset.action,fields={screenId:screen.id};
@@ -75,25 +88,26 @@ async function load(){
    }else if(action==='remove'){
     if(!confirm('Remove '+screen.label+'? This permanently deletes its registration and revokes its pairing. The physical TV can be registered again with a fresh code.'))return;
    }
-   button.disabled=true;
+   button.disabled=true;button.classList.add('rg-action-loading');const oldText=button.textContent;button.textContent='Working…';
    try{await call(action,fields);await load();setStatus('✓ Screen '+(action==='remove'?'removed':'updated')+'.','success');}
-   catch(e){setStatus(e.message,'error');button.disabled=false;}
+   catch(e){setStatus(e.message,'error');button.disabled=false;button.textContent=oldText;button.classList.remove('rg-action-loading');}
   }));
   setStatus(data.screens.length+' registered screens · status based on last heartbeat (online within 2 minutes).');
- }catch(e){setStatus(e.message+'. Deploy the screen-management Edge Function to enable this panel.','error');}
- finally{loading=false;lastLoadAt=Date.now();}
+  if(manual)refreshVisual('success');
+ }catch(e){setStatus(e.message+'. Check the screen-management service.','error');if(manual)refreshVisual('error');}
+ finally{loading=false;lastLoadAt=Date.now();if(manual)refreshFeedbackTimer=setTimeout(()=>refreshVisual('idle'),2200);}
 }
 form.addEventListener('submit',async e=>{
  e.preventDefault();
- const button=el('createScreenButton');button.disabled=true;
+ const button=el('createScreenButton');button.disabled=true;button.classList.add('rg-action-loading');const buttonText=button.textContent;button.textContent='Adding screen…';
  try{
   const data=await call('create',{label:el('newScreenLabel').value,location:el('newScreenLocation').value,display:el('newScreenDisplay').value});
   form.reset();await load();
   setStatus('✓ Created '+data.screen.label+'. Now pair it using the Pair Screens section.','success');
   const frame=el('pairingFrame');if(frame)frame.contentWindow.postMessage({type:'roots-grill-screens-changed'},location.origin);
- }catch(e){setStatus(e.message,'error');}finally{button.disabled=false;}
+ }catch(e){setStatus(e.message,'error');}finally{button.disabled=false;button.classList.remove('rg-action-loading');button.textContent=buttonText;}
 });
-el('refreshScreensButton').addEventListener('click',load);
+refreshButton.addEventListener('click',()=>load(true));
 const nav=document.querySelector('a[href="#screen-management"]');
 if(nav)nav.addEventListener('click',()=>load());
 window.addEventListener('hashchange',()=>{if(location.hash==='#screen-management')load();});
