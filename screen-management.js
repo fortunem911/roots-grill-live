@@ -11,6 +11,20 @@ let loading=false;
 let lastLoadAt=0;
 const details=el('screenDetailsPanel');
 let selectedScreenId=null;
+let historyRequest=0;
+const durationLabel=v=>v==null?'Not reported':Math.round(v/1000)+'s (configured)';
+async function loadHistory(id){
+ const requestId=++historyRequest;
+ const area=el('screenPlaybackHistory');if(!area)return;
+ area.textContent='Loading recent playback…';
+ try{
+  const result=await call('history',{screenId:id});
+  if(requestId!==historyRequest||selectedScreenId!==id)return;
+  const target=el('screenPlaybackHistory');if(!target)return;
+  target.innerHTML=result.events.length?result.events.map(e=>'<div style="padding:10px 0;border-bottom:1px solid #30343d"><strong>'+esc(e.media_name)+'</strong><small style="display:block;color:#aab0ba;margin-top:5px">Started: '+esc(readableDate(e.started_at))+' · Duration: '+esc(durationLabel(e.duration_ms))+'</small></div>').join(''):'<p class="muted">No playback events recorded for this screen yet.</p>';
+ }catch(e){if(requestId===historyRequest){const target=el('screenPlaybackHistory');if(target)target.textContent='Playback history unavailable: '+e.message;}}
+}
+
 const readableDate=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleString():'Never';
 function showDetails(screen,serverTime){
  selectedScreenId=screen.id;
@@ -19,7 +33,8 @@ function showDetails(screen,serverTime){
  const fields=[['Status',state],['Location',screen.location||screen.store_id],['Orientation',screen.display],['Last heartbeat',readableDate(screen.last_seen)],['Player mode',screen.player_mode||'Not reported'],['Playback issue',screen.playback_issue||'None reported'],['Screen ID',screen.id]];
  details.innerHTML='<div class="screen-detail-head"><div><small class="muted">SCREEN DETAILS</small><h3>'+esc(screen.label)+'</h3></div><button type="button" id="closeScreenDetails">Close</button></div><div class="screen-detail-grid">'+fields.map(([name,value])=>'<div><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong></div>').join('')+'</div><p class="screen-detail-note"><strong>Recent plays:</strong> Playback event history is not being recorded yet. This panel will show verified play events after tracking is enabled.</p>';
  details.hidden=false;
- el('closeScreenDetails').addEventListener('click',()=>{details.hidden=true;selectedScreenId=null});
+ el('closeScreenDetails').addEventListener('click',()=>{details.hidden=true;selectedScreenId=null;++historyRequest});
+ loadHistory(screen.id);
 }
 
 function setStatus(message,kind='neutral'){status.textContent=message;status.style.color=kind==='success'?'#66e99d':kind==='error'?'#ff8d92':'';}
