@@ -7,6 +7,8 @@ const el=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=el('screenManagementStatus'),list=el('screenManagementList'),form=el('newScreenForm');
 let loaded=false;
+let loading=false;
+let lastLoadAt=0;
 const details=el('screenDetailsPanel');
 let selectedScreenId=null;
 const readableDate=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleString():'Never';
@@ -30,6 +32,8 @@ async function call(action,fields={}){
  return data;
 }
 async function load(){
+ if(loading || document.getElementById('dashboardView').hidden || document.hidden)return;
+ loading=true;
  setStatus('Loading registered screens…');
  try{
   const data=await call('list');loaded=true;
@@ -62,6 +66,7 @@ async function load(){
   }));
   setStatus(data.screens.length+' registered screens · status based on last heartbeat (online within 2 minutes).');
  }catch(e){setStatus(e.message+'. Deploy the screen-management Edge Function to enable this panel.','error');}
+ finally{loading=false;lastLoadAt=Date.now();}
 }
 form.addEventListener('submit',async e=>{
  e.preventDefault();
@@ -78,4 +83,16 @@ const nav=document.querySelector('a[href="#screen-management"]');
 if(nav)nav.addEventListener('click',()=>load());
 window.addEventListener('hashchange',()=>{if(location.hash==='#screen-management')load();});
 if(location.hash==='#screen-management')load();
+function refreshWhenReady(){
+ if(document.hidden || document.getElementById('dashboardView').hidden)return;
+ if(!loaded || Date.now()-lastLoadAt>=30000)load();
+}
+db.auth.onAuthStateChange((event,session)=>{
+ if(event==='SIGNED_IN' && session)setTimeout(refreshWhenReady,250);
+ if(event==='SIGNED_OUT'){loaded=false;selectedScreenId=null;details.hidden=true;list.innerHTML='<p class="muted">Sign in to view registered screens.</p>';}
+});
+setInterval(refreshWhenReady,5000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshWhenReady();});
+window.addEventListener('focus',refreshWhenReady);
+window.addEventListener('message',e=>{if(e.origin===location.origin && e.data && e.data.type==='roots-grill-screens-changed'){lastLoadAt=0;refreshWhenReady();}});
 })();
