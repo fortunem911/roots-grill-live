@@ -19,7 +19,7 @@ Deno.serve(async req=>{
   if(body.action==='list'){
    const [stores,screens]=await Promise.all([
     db.from('grill_stores').select('id,name').order('name'),
-    db.from('grill_screens').select('id,label,location,disabled,store_id,display,rotation,last_seen,player_mode,playback_issue,updated_at').order('label')
+    db.from('grill_screens').select('id,label,location,disabled,store_id,display,rotation,last_seen,player_mode,playback_issue,current_media_id,current_media_name,updated_at').order('label')
    ]);
    if(stores.error)throw stores.error;if(screens.error)throw screens.error;
    return reply({ok:true,stores:stores.data,screens:screens.data,serverTime:new Date().toISOString()});
