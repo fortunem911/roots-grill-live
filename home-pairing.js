@@ -74,6 +74,7 @@
     } finally { if (timer) clearTimeout(timer); }
   }
   function errorState(text) {
+    overlay.hidden = false;
     title.textContent = 'Connection unavailable';
     message.textContent = text;
     codeEl.hidden = true;
