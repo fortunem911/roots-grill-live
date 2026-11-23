@@ -9,7 +9,7 @@ Deno.serve(async req=>{
  if(req.method==='OPTIONS')return new Response(null,{headers:cors});
  if(req.method!=='POST')return reply({error:'Method not allowed'},405);
  try{
-  const jwt=(req.headers.get('authorization')||'').replace(/^Bearer\\s+/i,'');
+  const jwt=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'');
   if(!jwt)return reply({error:'Sign in required'},401);
   const {data:{user},error:authError}=await db.auth.getUser(jwt);
   if(authError||!user)return reply({error:'Invalid session'},401);
