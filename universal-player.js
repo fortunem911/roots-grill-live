@@ -102,6 +102,15 @@
     script.src = 'cloud-player.js';
     document.body.appendChild(script);
   }
+  function setBookmarkUrl(screen) {
+    // Screen identity is a readable bookmark label, never a credential.
+    // Authorization remains tied to this browser's stored pairing token.
+    try {
+      var url = new URL(window.location.href);
+      url.searchParams.set('screen', screen.id);
+      window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+    } catch (e) { console.warn('Could not update TV bookmark URL:', e); }
+  }
   function startHeartbeat(token, screen) {
     screenId = screen.id;
     startPlayer(screen);
@@ -114,11 +123,13 @@
         // The heartbeat service accepts optional media context; never invent playback details.
         await request('heartbeat', { screenId: screenId }, token);
         overlay.hidden = true;
+        setBookmarkUrl(screen);
       } catch (e) {
         if (e.status === 401 || e.status === 403) {
           clearInterval(heartbeatTimer);
           heartbeatTimer = null;
           remove(storageKey);
+          try { var cleanUrl = new URL(window.location.href); cleanUrl.searchParams.delete('screen'); window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash); } catch (_) {}
           playerStarted = false;
           document.getElementById('universalStage').innerHTML = '';
           errorState('This screen is no longer authorized. Select Try again to request a new code.');
