@@ -7,6 +7,7 @@ const el=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const status=el('screenManagementStatus'),list=el('screenManagementList'),form=el('newScreenForm');
 let loaded=false;
+function setStatus(message,kind='neutral'){status.textContent=message;status.style.color=kind==='success'?'#66e99d':kind==='error'?'#ff8d92':'';}
 async function call(action,fields={}){
  const session=await db.auth.getSession(),token=session.data.session&&session.data.session.access_token;
  if(!token)throw Error('Please sign in to Head Office.');
@@ -16,7 +17,7 @@ async function call(action,fields={}){
  return data;
 }
 async function load(){
- status.textContent='Loading registered screens…';
+ setStatus('Loading registered screens…');
  try{
   const data=await call('list');loaded=true;
 
@@ -41,11 +42,11 @@ async function load(){
     if(!confirm('Remove '+screen.label+'? This permanently deletes its registration and revokes its pairing. The physical TV can be registered again with a fresh code.'))return;
    }
    button.disabled=true;
-   try{await call(action,fields);await load();status.textContent='✓ Screen '+(action==='remove'?'removed':'updated')+'.';}
-   catch(e){status.textContent=e.message;button.disabled=false;}
+   try{await call(action,fields);await load();setStatus('✓ Screen '+(action==='remove'?'removed':'updated')+'.','success');}
+   catch(e){setStatus(e.message,'error');button.disabled=false;}
   }));
-  status.textContent=data.screens.length+' registered screens · status based on last heartbeat (online within 2 minutes).';
- }catch(e){status.textContent=e.message+'. Deploy the screen-management Edge Function to enable this panel.';}
+  setStatus(data.screens.length+' registered screens · status based on last heartbeat (online within 2 minutes).');
+ }catch(e){setStatus(e.message+'. Deploy the screen-management Edge Function to enable this panel.','error');}
 }
 form.addEventListener('submit',async e=>{
  e.preventDefault();
@@ -53,9 +54,9 @@ form.addEventListener('submit',async e=>{
  try{
   const data=await call('create',{label:el('newScreenLabel').value,location:el('newScreenLocation').value,display:el('newScreenDisplay').value});
   form.reset();await load();
-  status.textContent='✓ Created '+data.screen.label+'. Now pair it using the Pair Screens section.';
+  setStatus('✓ Created '+data.screen.label+'. Now pair it using the Pair Screens section.','success');
   const frame=el('pairingFrame');if(frame)frame.contentWindow.postMessage({type:'roots-grill-screens-changed'},location.origin);
- }catch(e){status.textContent=e.message;}finally{button.disabled=false;}
+ }catch(e){setStatus(e.message,'error');}finally{button.disabled=false;}
 });
 el('refreshScreensButton').addEventListener('click',load);
 const nav=document.querySelector('a[href="#screen-management"]');
