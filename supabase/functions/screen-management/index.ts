@@ -24,6 +24,17 @@ Deno.serve(async req=>{
    if(stores.error)throw stores.error;if(screens.error)throw screens.error;
    return reply({ok:true,stores:stores.data,screens:screens.data,serverTime:new Date().toISOString()});
   }
+  if(body.action==='history'){
+   if(typeof body.screenId!=='string'||!/^[-a-z0-9]{1,100}$/.test(body.screenId))return reply({error:'Invalid screen'},400);
+   const {data:screen,error:screenError}=await db.from('grill_screens').select('id').eq('id',body.screenId).maybeSingle();
+   if(screenError)throw screenError;
+   if(!screen)return reply({error:'Screen not found'},404);
+   const {data:events,error:eventsError}=await db.from('grill_playback_events')
+     .select('id,media_id,media_name,started_at,duration_ms,reported_at')
+     .eq('screen_id',body.screenId).order('started_at',{ascending:false}).limit(20);
+   if(eventsError)throw eventsError;
+   return reply({ok:true,events:events||[]});
+  }
   if(body.action==='create'){
    const label=typeof body.label==='string'?body.label.trim():'';
    const location=typeof body.location==='string'?body.location.trim():'';
