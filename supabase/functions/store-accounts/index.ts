@@ -25,8 +25,33 @@ Deno.serve(async req=>{
    }
    return send({ok:true,accepted:invites.length});
   }
+  if(body.action==='managerOverview'){
+   const {data:memberships,error:membershipErr}=await admin.from('grill_store_memberships').select('store_id,role').eq('user_id',user.id).eq('active',true);
+   if(membershipErr)throw membershipErr;
+   if(!memberships?.length)return send({error:'No active store assignment. Ask Head Office to verify your invitation.'},403);
+   const storeIds=[...new Set(memberships.map(m=>m.store_id))];
+   const [stores,screens]=await Promise.all([
+    admin.from('grill_stores').select('id,name').in('id',storeIds).order('name'),
+    admin.from('grill_screens').select('id,label,location,store_id,display,last_seen,disabled,current_media_name,playback_issue').in('store_id',storeIds).order('label')
+   ]);
+   if(stores.error)throw stores.error;if(screens.error)throw screens.error;
+   return send({ok:true,stores:stores.data,screens:screens.data,serverTime:new Date().toISOString(),email:user.email});
+  }
   const {data:headOffice,error:adminErr}=await admin.from('grill_admins').select('user_id').eq('user_id',user.id).maybeSingle();
   if(adminErr||!headOffice)return send({error:'Head Office access required'},403);
+  if(body.action==='verifyManagers'){
+   const storeId=typeof body.storeId==='string'?body.storeId:'';
+   if(!/^[-a-z0-9]{1,100}$/.test(storeId))return send({error:'Invalid store'},400);
+   const {data:store,error:storeErr}=await admin.from('grill_stores').select('id,name').eq('id',storeId).maybeSingle();
+   if(storeErr)throw storeErr;if(!store)return send({error:'Store not found'},404);
+   const [memberships,invitations]=await Promise.all([
+    admin.from('grill_store_memberships').select('user_id,role,active,created_at').eq('store_id',storeId),
+    admin.from('grill_store_invitations').select('email,status,invited_at,accepted_at,expires_at,accepted_by').eq('store_id',storeId).order('invited_at',{ascending:false})
+   ]);
+   if(memberships.error)throw memberships.error;if(invitations.error)throw invitations.error;
+   const members=(memberships.data||[]).map(m=>({...m,email:(invitations.data||[]).find(i=>i.accepted_by===m.user_id)?.email||'Email not recorded in invitation'}));
+   return send({ok:true,store,members,invitations:invitations.data});
+  }
   if(body.action==='stores'){
    const {data,error}=await admin.from('grill_stores').select('id,name').order('name');if(error)throw error;
    return send({ok:true,stores:data});
