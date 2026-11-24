@@ -9,7 +9,7 @@
   var pendingKey = 'roots-grill-universal-pending-v1';
   var portrait = false;
   var pairingTimer = null, heartbeatTimer = null, working = false;
-  var pendingPlays = [], heartbeatNow = null;
+  var pendingPlays = [], heartbeatNow = null, lastReport = null, lastError = null, lastDetected = null;
   var overlay = document.createElement('section');
   overlay.id = 'rootsPairingOverlay';
   overlay.setAttribute('aria-live', 'polite');
@@ -100,7 +100,7 @@
       stage.innerHTML = '<main id="slideshow" class="slideshow" aria-live="off"></main>';
     }
     var script = document.createElement('script');
-    script.src = 'cloud-player.js?v=20261124-resource-v1';
+    script.src = 'cloud-player.js?v=20261124-diagnostics-v1';
     document.body.appendChild(script);
   }
   function setBookmarkUrl(screen) {
@@ -115,6 +115,7 @@
   window.addEventListener('roots-grill-media-started', function(event) {
     var item = event.detail;
     if (!screenId || !item || !item.mediaId || !item.startedAt) return;
+    lastDetected = new Date().toISOString();
     pendingPlays.push(item);
     if (pendingPlays.length > 100) pendingPlays.shift();
     // Playback reports are sent with the scheduled heartbeat.
@@ -132,14 +133,16 @@
       inFlight = true;
       var play = pendingPlays.length ? pendingPlays[0] : null;
       try {
-        var body = {screenId:screenId};
+        var body = {screenId:screenId, diagnostics:{version:'20261124-diagnostics-v1',browser:String(navigator.userAgent||'').slice(0,240),cacheAvailable:!!window.caches,pending:pendingPlays.length,lastDetected:lastDetected,lastReport:lastReport,lastError:lastError}};
         if (play) body.playbackEvent = play;
         await request('heartbeat', body, token);
         window.dispatchEvent(new Event('roots-grill-player-resume'));
-        if (play && pendingPlays[0] === play) pendingPlays.shift();
+        if (play && pendingPlays[0] === play) {pendingPlays.shift();lastReport=new Date().toISOString();lastError=null;}
         overlay.hidden = true;
         if (pendingPlays.length) setTimeout(beat, 1000);
       } catch (e) {
+        lastError=String(e.message||e).slice(0,180);
+        if(e.status===400 && play && pendingPlays[0]===play) pendingPlays.shift();
         if (e.status === 403) {
           window.dispatchEvent(new Event('roots-grill-player-pause'));
           // Temporarily disabled: keep the device's token, and retry on the next heartbeat.
