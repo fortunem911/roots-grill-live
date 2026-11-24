@@ -100,7 +100,7 @@
       stage.innerHTML = '<main id="slideshow" class="slideshow" aria-live="off"></main>';
     }
     var script = document.createElement('script');
-    script.src = 'cloud-player.js?v=20261123-playback-v1';
+    script.src = 'cloud-player.js?v=20261124-smart-playback-v1';
     document.body.appendChild(script);
   }
   function setBookmarkUrl(screen) {
@@ -135,11 +135,13 @@
         var body = {screenId:screenId};
         if (play) body.playbackEvent = play;
         await request('heartbeat', body, token);
+        window.dispatchEvent(new Event('roots-grill-player-resume'));
         if (play && pendingPlays[0] === play) pendingPlays.shift();
         overlay.hidden = true;
         if (pendingPlays.length) setTimeout(beat, 100);
       } catch (e) {
         if (e.status === 403) {
+          window.dispatchEvent(new Event('roots-grill-player-pause'));
           // Temporarily disabled: keep the device's token, and retry on the next heartbeat.
           overlay.hidden = false;
           title.textContent = 'Screen disabled';
@@ -153,6 +155,7 @@
           pendingPlays = [];
           heartbeatNow = null;
           try { var cleanUrl = new URL(window.location.href); cleanUrl.searchParams.delete('screen'); window.history.replaceState(null, '', cleanUrl.pathname + cleanUrl.search + cleanUrl.hash); } catch (_) {}
+          window.dispatchEvent(new Event('roots-grill-player-stop'));
           playerStarted = false;
           document.getElementById('universalStage').innerHTML = '';
           errorState('This screen is no longer authorized. Select Try again to request a new code.');
