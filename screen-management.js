@@ -124,13 +124,13 @@ window.addEventListener('hashchange',()=>{if(location.hash==='#screen-management
 if(location.hash==='#screen-management')load();
 function refreshWhenReady(){
  if(document.hidden || document.getElementById('dashboardView').hidden)return;
- if(!loaded || Date.now()-lastLoadAt>=30000)load();
+ if(!loaded || Date.now()-lastLoadAt>=60000)load();
 }
 db.auth.onAuthStateChange((event,session)=>{
  if(event==='SIGNED_IN' && session)setTimeout(refreshWhenReady,250);
  if(event==='SIGNED_OUT'){if(health)health.innerHTML='';loaded=false;selectedScreenId=null;details.hidden=true;list.innerHTML='<p class="muted">Sign in to view registered screens.</p>';}
 });
-setInterval(refreshWhenReady,5000);
+setInterval(refreshWhenReady,15000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshWhenReady();});
 window.addEventListener('focus',refreshWhenReady);
 window.addEventListener('message',e=>{if(e.origin===location.origin && e.data && e.data.type==='roots-grill-screens-changed'){lastLoadAt=0;refreshWhenReady();}});
