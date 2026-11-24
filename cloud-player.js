@@ -49,5 +49,5 @@
   window.addEventListener('roots-grill-player-resume',function(){if(!paused||stopped)return;paused=false;show(active||items[0]);refresh();});
   try{items=JSON.parse(localStorage.getItem(storageKey)||'[]').filter(valid);}catch(e){}
   if(items.length)show(items[0]);
-  refresh();var poll=setInterval(refresh,2000);window.addEventListener('online',refresh);
+  refresh();var poll=setInterval(refresh,60000);window.addEventListener('online',refresh);
 })();
