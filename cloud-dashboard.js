@@ -55,7 +55,7 @@ function render() {
   }));
 }
 async function videoDuration(file) {
-  if (!file.type.startsWith('video/')) return null;
+  if (!file.type.startsWith('video/')) return 10000;
   return new Promise(resolve => {
     const v = document.createElement('video'), u = URL.createObjectURL(file);
     const timer = setTimeout(() => done(null), 12000);
@@ -65,7 +65,7 @@ async function videoDuration(file) {
   });
 }
 async function orientation(file) {
-  if (!file.type.startsWith('image/')) return 'landscape';
+  if (file.type.startsWith('video/')) return new Promise((resolve,reject)=>{const v=document.createElement('video'),u=URL.createObjectURL(file);const t=setTimeout(()=>done(false),15000);function done(ok){clearTimeout(t);const d=v.videoHeight>v.videoWidth?'portrait':'landscape';URL.revokeObjectURL(u);v.removeAttribute('src');if(ok)resolve(d);else reject(new Error('Cannot read video dimensions: '+file.name));}v.preload='metadata';v.onloadedmetadata=()=>done(v.videoWidth>0&&v.videoHeight>0);v.onerror=()=>done(false);v.src=u;});
   return new Promise(resolve => {
     const image = new Image(), url = URL.createObjectURL(file);
     image.onload = () => { const d = image.naturalHeight > image.naturalWidth ? 'portrait' : 'landscape'; URL.revokeObjectURL(url); resolve(d); };
