@@ -8,152 +8,45 @@
   var stage = document.getElementById('slideshow');
   var screen = document.getElementById('portraitScreen');
   var fallback = document.getElementById('portraitFallback');
-  var signature = '', currentIndex = -1, currentVideo = null;
-  var items = [];
-  var refreshing = false, portraitLoadToken = 0;
-  // Detect slow video decoding per screen. Never degrade image quality.
-  var liteMode = false, videoFailures = 0, healthyStarts = 0;
-  var videoStartTimer = null, activeVideoToken = 0;
-  function recordVideoProblem(reason) {
-    if (portrait) return;
-    videoFailures++; healthyStarts = 0;
-    if (!liteMode && videoFailures >= 2) {
-      liteMode = true;
-      console.warn('Roots Grill: automatic video Lite Mode enabled (' + reason + ')');
-    }
+
+  var host=portrait?screen.parentNode:stage;
+  if(!host)return;
+  if(screen)screen.style.display='none';
+  var items=[],active=null,media=null,timer=null,watch=null,serial=0,refreshing=false,stopped=false,paused=false,objectUrl=null;
+  var cacheName='roots-grill-media-v1', storageKey='rg-playlist-v1-'+display;
+  var cacheBusy=false;
+  function valid(i){try{return i && i.id && (i.display||display)===display && new URL(i.url).protocol==='https:';}catch(e){return false;}}
+  function video(i){return String(i.mimeType||'').indexOf('video/')===0;}
+  function clear(){serial++;clearTimeout(timer);clearInterval(watch);if(media){if(media.tagName==='VIDEO'){media.pause();media.removeAttribute('src');media.load();}media.remove();media=null;}if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=null;}}
+  function report(i,d){window.dispatchEvent(new CustomEvent('roots-grill-media-started',{detail:{mediaId:String(i.id),mediaName:String(i.originalName||i.filename||i.id),startedAt:new Date().toISOString(),durationMs:d}}));}
+  function next(){var n=active?items.findIndex(function(i){return i.id===active.id;}):-1;show(items[(n+1)%items.length]);}
+  async function cached(i){try{if(!window.caches)return null;var c=await caches.open(cacheName);var r=await c.match(i.url);return r?await r.blob():null;}catch(e){return null;}}
+  async function warm(i){if(cacheBusy||!i||!navigator.onLine||!window.caches)return;cacheBusy=true;try{var c=await caches.open(cacheName);if(await c.match(i.url))return;var r=await fetch(i.url,{mode:'cors'});if(!r.ok)return;var b=await r.blob();if(b.size>50*1024*1024)return;var keys=await c.keys();while(keys.length>=6){await c.delete(keys.shift());}await c.put(i.url,new Response(b,{headers:{'Content-Type':b.type||i.mimeType}}));}catch(e){console.warn('Media cache unavailable',e);}finally{cacheBusy=false;}}
+  async function show(i){
+    clear();active=i||null;if(stopped||paused||!i)return;
+    var token=serial,started=false,lastTime=0,lastProgress=Date.now();
+    var b=await cached(i);if(token!==serial||stopped||paused)return;
+    var m=document.createElement(video(i)?'video':'img');media=m;
+    m.style.cssText='position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000;border:0;';
+    if(fallback)fallback.style.display='none';
+    function advance(){if(token===serial)next();}
+    function fail(){if(token!==serial)return;clearTimeout(timer);clearInterval(watch);timer=setTimeout(advance,3000);}
+    function start(){if(token!==serial||started)return;started=true;clearTimeout(timer);lastProgress=Date.now();report(i,video(i)?(Number.isFinite(m.duration)?Math.round(m.duration*1000):null):10000);if(!video(i)){timer=setTimeout(advance,10000);warm(i);}else if(b){var idx=items.findIndex(function(x){return x.id===i.id;});warm(items[(idx+1)%items.length]);}}
+    m.onerror=fail;
+    if(video(i)){m.muted=true;m.defaultMuted=true;m.playsInline=true;m.setAttribute('playsinline','');m.preload='auto';m.loop=false;m.controls=false;m.onplaying=start;m.onended=advance;watch=setInterval(function(){if(token!==serial)return;if(m.currentTime>lastTime+0.05){lastTime=m.currentTime;lastProgress=Date.now();}if(Date.now()-lastProgress>45000)fail();},5000);}
+    else m.onload=start;
+    timer=setTimeout(fail,45000);
+    host.appendChild(m);
+    if(b)objectUrl=URL.createObjectURL(b);
+    m.src=objectUrl||i.url;
+    if(video(i)){var p=m.play();if(p&&p.catch)p.catch(fail);if(!b)m.addEventListener('ended',function(){warm(i);},{once:true});}
   }
-  function watchVideo(video) {
-    var token = ++activeVideoToken;
-    if (videoStartTimer) clearTimeout(videoStartTimer);
-    if (!video) return;
-    var started = false;
-    function onPlaying() {
-      if (token !== activeVideoToken || started) return;
-      started = true;
-      if (videoStartTimer) clearTimeout(videoStartTimer);
-      healthyStarts++;
-      if (healthyStarts >= 5) { videoFailures = 0; liteMode = false; }
-    }
-    function onProblem() {
-      if (token !== activeVideoToken || !started) return;
-      recordVideoProblem('video buffering');
-    }
-    video.addEventListener('playing', onPlaying, {once:true});
-    video.addEventListener('stalled', onProblem, {once:true});
-    videoStartTimer = setTimeout(function() {
-      if (token === activeVideoToken && !started) recordVideoProblem('slow video start');
-    }, 3500);
-  }
-  function errorMessage(message) {
-    if (portrait) { fallback.textContent = message; fallback.style.display = 'grid'; }
-    else if (!items.length) stage.innerHTML = '<div class="display-empty"><strong>'+message+'</strong></div>';
-  }
-  function safeUrl(url) { try { var u = new URL(url); return u.protocol === 'https:' ? u.href : ''; } catch (_) { return ''; } }
-  function isVideo(item) { return String(item.mimeType || '').indexOf('video/') === 0; }
-  function signatureOf(list) { return list.map(function(i){return i.id+':'+i.url+':'+i.durationMs;}).join('|'); }
-  // Inform the paired universal player only after a media item becomes active.
-  // Public legacy players can ignore this event without changing playback.
-  function reportPlay(item) {
-    if (!item || !item.id) return;
-    window.dispatchEvent(new CustomEvent('roots-grill-media-started', {detail:{
-      mediaId:String(item.id), mediaName:String(item.originalName || item.filename || item.id),
-      startedAt:new Date().toISOString(), durationMs:Number.isInteger(item.durationMs) && item.durationMs>=0 ? item.durationMs : null
-    }}));
-  }
-  function show(index, slotStartedAt) {
-    if (!items.length) { errorMessage('Waiting for '+display+' media…'); return; }
-    var i = ((Number(index) || 0) % items.length + items.length) % items.length;
-    if (portrait) {
-      var item = items[i];
-      if (i === currentIndex && screen.src === item.url) return;
-      var token = ++portraitLoadToken;
-      var preload = new Image();
-      preload.onload = function () { if (token !== portraitLoadToken) return; screen.src = item.url; screen.hidden = false; screen.style.display = 'block'; fallback.style.display = 'none'; currentIndex = i; reportPlay(item); };
-      preload.onerror = function () { if (token === portraitLoadToken) errorMessage('Media unavailable. Retrying…'); };
-      preload.src = item.url;
-      return;
-    }
-    if (i === currentIndex) {
-      // Do not repeatedly seek on every cloud poll: seeking stalls many built-in TV browsers.
-      if (currentVideo && currentVideo.paused && currentVideo.readyState >= 2) {
-        var resume = currentVideo.play();
-        if (resume && resume.catch) resume.catch(function(){});
-      }
-      return;
-    }
-    var slides = stage.querySelectorAll('.slide');
-    for (var n=0;n<slides.length;n++) {
-      var active = n === i; slides[n].hidden = !active; slides[n].classList.toggle('active',active);
-      var v = slides[n].querySelector('video');
-      if (v && !active) { v.pause(); v.currentTime = 0; }
-    }
-    currentVideo = slides[i] && slides[i].querySelector('video');
-    watchVideo(currentVideo);
-    // Keep only the current and next video eager-loaded on low-memory TVs.
-    for (var k=0;k<slides.length;k++) {
-      var candidate = slides[k].querySelector('video');
-      if (candidate) candidate.preload = liteMode ? (k === i ? 'auto' : 'none') : ((k === i || k === (i+1)%slides.length) ? 'auto' : 'metadata');
-    }
-    if (currentVideo) {
-      currentVideo.muted = true;
-      var desiredSeconds = Number.isFinite(Number(slotStartedAt)) ? Math.max(0,(Date.now()-Number(slotStartedAt))/1000) : 0;
-      // Seek once when activating a clip, not repeatedly during playback.
-      if (!liteMode && currentVideo.readyState >= 2 && Number.isFinite(currentVideo.duration) && desiredSeconds < currentVideo.duration - 0.5) {
-        try { currentVideo.currentTime = desiredSeconds; } catch (_) {}
-      }
-      var promise = currentVideo.play(); if (promise && promise.catch) promise.catch(function(){});
-    }
-    currentIndex = i;
-    if (currentVideo) {
-      var startedVideo = currentVideo, activeIndex = i, activeItem = items[i];
-      if (!startedVideo.paused && startedVideo.readyState >= 2) reportPlay(activeItem);
-      else startedVideo.addEventListener('playing', function onStarted() {
-        startedVideo.removeEventListener('playing', onStarted);
-        if (currentIndex === activeIndex) reportPlay(activeItem);
-      }, {once:true});
-    } else if (slides[i] && slides[i].querySelector('img')) {
-      var activeImage = slides[i].querySelector('img'), imageItem = items[i];
-      if (activeImage.complete && activeImage.naturalWidth > 0) reportPlay(imageItem);
-      else activeImage.addEventListener('load', function onLoaded() {
-        if (currentIndex === i) reportPlay(imageItem);
-      }, {once:true});
-    }
-  }
-  function apply(state) {
-    var next = (Array.isArray(state.items) ? state.items : []).filter(function(i){ return (i.display || display) === display && safeUrl(i.url) && (!portrait || !isVideo(i)); });
-    var sig = signatureOf(next);
-    if (sig !== signature) {
-      signature = sig; items = next; currentIndex = -1; portraitLoadToken++;
-      if (!portrait) {
-        stage.innerHTML = '';
-        next.forEach(function(item) {
-          var slide = document.createElement('article'); slide.className = 'slide'; slide.hidden = true;
-          var media = document.createElement(isVideo(item) ? 'video' : 'img');
-          media.src = item.url; if (media.tagName === 'VIDEO') { media.muted = true; media.playsInline = true; media.loop = true; media.preload = 'metadata'; }
-          else media.alt = item.originalName || 'Roots Grill artwork';
-          slide.appendChild(media); stage.appendChild(slide);
-        });
-      }
-    } else items = next;
-    if (!items.length) { errorMessage('Waiting for '+display+' media…'); return; }
-    show(state.currentIndex, state.slotStartedAt);
-  }
-  async function refresh() {
-    if (refreshing || document.hidden || !navigator.onLine) return;
-    refreshing = true;
-    var controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timeout = controller ? setTimeout(function() { controller.abort(); }, 8000) : null;
-    try {
-      var options = {headers:{'apikey':publishable},cache:'no-store'};
-      if (controller) options.signal = controller.signal;
-      var response = await fetch(endpoint+'&_='+Date.now(), options);
-      if (!response.ok) throw new Error('Display service HTTP '+response.status);
-      apply(await response.json());
-    } catch (e) { console.warn('Roots Grill display refresh:',e); if (!items.length) errorMessage('Connecting to Roots Grill Cloud…'); }
-    finally { if (timeout) clearTimeout(timeout); refreshing = false; }
-  }
-  refresh();
-  setInterval(refresh, 2000);
-  window.addEventListener('online',refresh);
-  document.addEventListener('visibilitychange', function() { if (!document.hidden) refresh(); });
+  function apply(state){var list=(Array.isArray(state.items)?state.items:[]).filter(valid);items=list;try{localStorage.setItem(storageKey,JSON.stringify(list));}catch(e){}if(!list.length){clear();active=null;return;}if(!active||!list.some(function(i){return i.id===active.id&&i.url===active.url;}))show(list[0]);}
+  async function refresh(){if(stopped||paused||refreshing||!navigator.onLine)return;refreshing=true;var c=typeof AbortController!=='undefined'?new AbortController():null;var t=c?setTimeout(function(){c.abort();},8000):null;try{var r=await fetch(endpoint+'&_='+Date.now(),{headers:{apikey:publishable},cache:'no-store',signal:c?c.signal:undefined});if(r.ok&&!stopped&&!paused)apply(await r.json());}catch(e){}finally{clearTimeout(t);refreshing=false;}}
+  window.addEventListener('roots-grill-player-stop',function(){stopped=true;clear();clearInterval(poll);});
+  window.addEventListener('roots-grill-player-pause',function(){paused=true;clear();});
+  window.addEventListener('roots-grill-player-resume',function(){if(!paused||stopped)return;paused=false;show(active||items[0]);refresh();});
+  try{items=JSON.parse(localStorage.getItem(storageKey)||'[]').filter(valid);}catch(e){}
+  if(items.length)show(items[0]);
+  refresh();var poll=setInterval(refresh,2000);window.addEventListener('online',refresh);
 })();
