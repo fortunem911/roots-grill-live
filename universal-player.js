@@ -100,7 +100,7 @@
       stage.innerHTML = '<main id="slideshow" class="slideshow" aria-live="off"></main>';
     }
     var script = document.createElement('script');
-    script.src = 'cloud-player.js?v=20261124-video-lock-v2';
+    script.src = 'cloud-player.js?v=20261124-resource-v1';
     document.body.appendChild(script);
   }
   function setBookmarkUrl(screen) {
@@ -117,7 +117,7 @@
     if (!screenId || !item || !item.mediaId || !item.startedAt) return;
     pendingPlays.push(item);
     if (pendingPlays.length > 100) pendingPlays.shift();
-    if (heartbeatNow) heartbeatNow();
+    // Playback reports are sent with the scheduled heartbeat.
   });
   function startHeartbeat(token, screen) {
     screenId = screen.id;
@@ -138,7 +138,7 @@
         window.dispatchEvent(new Event('roots-grill-player-resume'));
         if (play && pendingPlays[0] === play) pendingPlays.shift();
         overlay.hidden = true;
-        if (pendingPlays.length) setTimeout(beat, 100);
+        if (pendingPlays.length) setTimeout(beat, 1000);
       } catch (e) {
         if (e.status === 403) {
           window.dispatchEvent(new Event('roots-grill-player-pause'));
@@ -219,7 +219,7 @@
         finally { inFlight = false; }
       }
       poll();
-      pairingTimer = setInterval(poll, 4000);
+      pairingTimer = setInterval(poll, 10000);
     } catch (e) { errorState(e.message || 'Could not generate pairing code.'); }
     finally { working = false; }
   }
