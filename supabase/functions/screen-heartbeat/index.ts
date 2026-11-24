@@ -30,6 +30,10 @@ Deno.serve(async request=>{
     const patch:Record<string,unknown>={last_seen:new Date().toISOString(),updated_at:new Date().toISOString()};
     if(data.playerMode!==undefined)patch.player_mode=clean(data.playerMode,30);
     if(data.playbackIssue!==undefined)patch.playback_issue=clean(data.playbackIssue,180);
+    if(data.diagnostics && typeof data.diagnostics==='object'){
+      const d=data.diagnostics;
+      patch.player_diagnostics={version:clean(d.version,60),browser:clean(d.browser,240),cacheAvailable:d.cacheAvailable===true,pending:Number.isInteger(d.pending)?Math.max(0,Math.min(100,d.pending)):null,lastDetected:clean(d.lastDetected,40),lastReport:clean(d.lastReport,40),lastError:clean(d.lastError,180)};
+    }
     // Preserve last reported media on ordinary heartbeat requests.
     // Only authenticated playback events can change Now Playing.
     if(data.playbackEvent && typeof data.playbackEvent.mediaId==='string' && typeof data.playbackEvent.mediaName==='string'){
