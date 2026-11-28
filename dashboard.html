@@ -1192,7 +1192,7 @@
         @media(prefers-reduced-motion:reduce){#refreshScreensButton,.screen-mgmt-actions button,.screen-mgmt-name,#createScreenButton,.screen-detail-head button{transition:none!important}}
         @media(max-width:800px){.screen-mgmt-fields{grid-template-columns:1fr}.screen-mgmt-row{align-items:flex-start}}
         </style>
-        <div class="screen-mgmt-panel"><p class="kicker">LIVE SCREEN HEALTH</p><div id="screenHealthDashboard" class="rg-health-grid" aria-live="polite"><p class="muted">Loading screen health…</p></div><p class="muted" style="margin-top:12px;font-size:12px">Online means a heartbeat was received within the last 2 minutes. Updates automatically.</p></div>
+        <div class="screen-mgmt-panel"><p class="kicker">LIVE SCREEN HEALTH</p><div id="screenHealthDashboard" class="rg-health-grid" aria-live="polite"><p class="muted">Loading screen health…</p></div><p class="muted" style="margin-top:12px;font-size:12px">Online means a heartbeat was received within the last 5 minutes. Select Refresh screens to update.</p></div>
         <div class="screen-mgmt-panel"><p class="kicker">ADD NEW SCREEN</p><form id="newScreenForm"><div class="screen-mgmt-fields">
         <label>Screen name<input id="newScreenLabel" placeholder="e.g. Boardroom Screen 01" maxlength="80" minlength="2" required></label>
         <label>Location<input id="newScreenLocation" placeholder="e.g. Head Office — Downstairs Boardroom" maxlength="120" minlength="2" required></label>
@@ -1217,7 +1217,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-  <script src="cloud-dashboard.js?v=20261124-smart-playback-v1"></script>
-  <script src="screen-management.js?v=20261124-diagnostics-v1"></script>
+  <script src="cloud-dashboard.js?v=20261128-emergency-v1"></script>
+  <script src="screen-management.js?v=20261128-emergency-v1"></script>
 </body>
 </html>
