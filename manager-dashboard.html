@@ -15,7 +15,7 @@ function showLogin(){$('loading').hidden=true;$('dashboard').hidden=true;$('logi
 function showDashboard(){$('loading').hidden=true;$('login').hidden=true;$('dashboard').hidden=false;$('logout').hidden=false;}
 async function load(){
  const data=await api();const now=new Date(data.serverTime).getTime(),screens=data.screens||[],stores=data.stores||[];
- const isOnline=s=>!s.disabled&&s.last_seen&&now-new Date(s.last_seen).getTime()<90000;
+ const isOnline=s=>!s.disabled&&s.last_seen&&now-new Date(s.last_seen).getTime()<300000;
  $('storesCount').textContent=stores.length;$('tvCount').textContent=screens.length;
  $('onlineCount').textContent=screens.filter(isOnline).length;$('offlineCount').textContent=screens.filter(s=>!isOnline(s)).length;
  const firstName=String(data.managerName||'').trim().split(/\s+/)[0];$('greeting').textContent=firstName?'Welcome, '+firstName+'!':'Store Overview';$('userEmail').textContent=data.email||'';
