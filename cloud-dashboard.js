@@ -38,7 +38,7 @@ function render() {
   if (!visible.length) { empty.querySelector('h3').textContent = 'No media uploaded yet'; empty.querySelector('p').textContent = 'Your uploaded artwork will appear here.'; }
   adminGrid.innerHTML = visible.map(i => {
     const isImage = String(i.mimeType || '').startsWith('image/');
-    const preview = isImage ? '<img loading="lazy" src="'+safe(i.url)+'" alt="'+safe(i.originalName)+'">' : '<video controls preload="metadata" src="'+safe(i.url)+'"></video>';
+    const preview = isImage ? '<img loading="lazy" src="'+safe(i.url)+'" alt="'+safe(i.originalName)+'">' : '<video controls preload="none" src="'+safe(i.url)+'"></video>';
     return '<article class="media-card"><div class="media-preview">'+preview+'<span class="display-badge '+safe(i.display || 'landscape')+'">'+safe(i.display || 'landscape')+'</span></div><div class="media-info"><strong>'+safe(i.originalName)+'</strong><small>'+safe(new Date(i.uploadedAt).toLocaleString())+'</small><div class="media-actions"><button class="delete-button" data-id="'+safe(i.id)+'" type="button">Delete</button></div></div></article>';
   }).join('');
   adminGrid.querySelectorAll('.delete-button').forEach(btn => btn.addEventListener('click', async () => {
