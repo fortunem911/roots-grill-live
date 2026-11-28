@@ -26,7 +26,7 @@ function renderHealth(screens,serverTime){
  if(!health)return;
  const now=Date.parse(serverTime);
  const counts={total:screens.length,online:0,offline:0,disabled:0};
- screens.forEach(s=>{if(s.disabled)counts.disabled++;else if(s.last_seen&&now-Date.parse(s.last_seen)>=0&&now-Date.parse(s.last_seen)<120000)counts.online++;else counts.offline++;});
+ screens.forEach(s=>{if(s.disabled)counts.disabled++;else if(s.last_seen&&now-Date.parse(s.last_seen)>=0&&now-Date.parse(s.last_seen)<300000)counts.online++;else counts.offline++;});
  health.innerHTML=[['Registered TVs',counts.total,'monitor'],['Online',counts.online,'online'],['Offline / Not connected',counts.offline,'offline'],['Disabled',counts.disabled,'disabled']].map(([label,value,kind])=>'<div class="rg-health-card rg-health-'+kind+'"><small>'+label+'</small><strong>'+value+'</strong></div>').join('');
 }
 
@@ -49,7 +49,7 @@ const readableDate=v=>v&&Number.isFinite(Date.parse(v))?new Date(v).toLocaleStri
 function showDetails(screen,serverTime,scrollToPanel=false){
  selectedScreenId=screen.id;
  const age=screen.last_seen?Date.parse(serverTime)-Date.parse(screen.last_seen):Infinity;
- const state=screen.disabled?'Disabled':!screen.last_seen?'Not connected':age>=0&&age<120000?'Online':'Offline';
+ const state=screen.disabled?'Disabled':!screen.last_seen?'Not connected':age>=0&&age<300000?'Online':'Offline';
  const d=screen.player_diagnostics||{};
  const fields=[['Status',state],['Location',screen.location||screen.store_id],['Orientation',screen.display],['Last heartbeat',readableDate(screen.last_seen)],['Now playing',screen.current_media_name||'Awaiting current-media reporting'],['Player mode',screen.player_mode||'Not reported'],['Playback issue',screen.playback_issue||'None reported'],['Screen ID',screen.id],['Player version',d.version||'Not reported'],['Browser',d.browser||'Not reported'],['Cache API',d.cacheAvailable===true?'Available':d.cacheAvailable===false?'Unavailable':'Not reported'],['Pending plays',d.pending??'Not reported'],['Last detected play',readableDate(d.lastDetected)],['Last acknowledged play',readableDate(d.lastReport)],['Reporting error',d.lastError||'None reported']];
  details.innerHTML='<div class="screen-detail-head"><div><small class="muted">SCREEN DETAILS</small><h3>'+esc(screen.label)+'</h3></div><button type="button" id="closeScreenDetails">Close</button></div><div class="screen-detail-grid">'+fields.map(([name,value])=>'<div><small>'+esc(name)+'</small><strong>'+esc(value)+'</strong></div>').join('')+'</div><div class="screen-detail-note"><strong>Recent plays</strong><div id="screenPlaybackHistory" role="status">Loading recent playback…</div></div>';
@@ -81,7 +81,7 @@ async function load(manual=false){
   if(selectedScreenId){const selected=data.screens.find(s=>s.id===selectedScreenId);if(selected)showDetails(selected,data.serverTime);else{details.hidden=true;selectedScreenId=null;}}
   list.innerHTML=data.screens.map(s=>{
    const age=s.last_seen?now-Date.parse(s.last_seen):Infinity;
-   const online=!s.disabled&&age>=0&&age<120000;
+   const online=!s.disabled&&age>=0&&age<300000;
    const state=s.disabled?'Disabled':!s.last_seen?'Not connected':online?'Online':'Offline';
    return '<div class="screen-mgmt-row"><div><button type="button" class="screen-mgmt-name" data-details="'+esc(s.id)+'">'+esc(s.label)+'</button><small>'+esc(s.location||s.store_id)+' · '+esc(s.display)+'</small><small>'+esc(s.id)+'</small></div><div><span class="screen-mgmt-pill '+(online?'online':'')+'">'+esc(state)+'</span><div class="screen-mgmt-actions"><button type="button" data-action="edit" data-id="'+esc(s.id)+'">Edit</button><button type="button" data-action="toggle" data-id="'+esc(s.id)+'">'+(s.disabled?'Enable':'Disable')+'</button><button type="button" data-action="remove" data-id="'+esc(s.id)+'">Remove</button></div></div></div>';
   }).join('')||'<p class="muted">No screens registered.</p>';
@@ -103,7 +103,7 @@ async function load(manual=false){
    try{await call(action,fields);await load();setStatus('✓ Screen '+(action==='remove'?'removed':'updated')+'.','success');}
    catch(e){setStatus(e.message,'error');button.disabled=false;button.textContent=oldText;button.classList.remove('rg-action-loading');}
   }));
-  setStatus(data.screens.length+' registered screens · status based on last heartbeat (online within 2 minutes).');
+  setStatus(data.screens.length+' registered screens · status based on last heartbeat (online within 5 minutes).');
   if(manual)refreshVisual('success');
  }catch(e){setStatus(e.message+'. Check the screen-management service.','error');if(manual)refreshVisual('error');}
  finally{loading=false;lastLoadAt=Date.now();if(manual)refreshFeedbackTimer=setTimeout(()=>refreshVisual('idle'),2200);}
@@ -125,14 +125,14 @@ window.addEventListener('hashchange',()=>{if(location.hash==='#screen-management
 if(location.hash==='#screen-management')load();
 function refreshWhenReady(){
  if(document.hidden || document.getElementById('dashboardView').hidden)return;
- if(!loaded || Date.now()-lastLoadAt>=60000)load();
+ if(!loaded)load();
 }
 db.auth.onAuthStateChange((event,session)=>{
  if(event==='SIGNED_IN' && session)setTimeout(refreshWhenReady,250);
  if(event==='SIGNED_OUT'){if(health)health.innerHTML='';loaded=false;selectedScreenId=null;details.hidden=true;list.innerHTML='<p class="muted">Sign in to view registered screens.</p>';}
 });
-setInterval(refreshWhenReady,15000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshWhenReady();});
-window.addEventListener('focus',refreshWhenReady);
-window.addEventListener('message',e=>{if(e.origin===location.origin && e.data && e.data.type==='roots-grill-screens-changed'){lastLoadAt=0;refreshWhenReady();}});
+// Emergency mode: no periodic dashboard requests.
+
+
+window.addEventListener('message',e=>{if(e.origin===location.origin && e.data && e.data.type==='roots-grill-screens-changed'){load();}});
 })();
