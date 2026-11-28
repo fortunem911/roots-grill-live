@@ -83,7 +83,7 @@ form.addEventListener('submit',async function(e){
  var chosen=managedScreens.find(function(s){return s.id===screenId});
  if(!chosen){setStatus('Screen is no longer available. Select another screen.','error');return}
  if(chosen.disabled){setStatus('This screen is disabled. Enable it before pairing.','error');return}
- var recentlySeen=chosen.last_seen&&Date.now()-Date.parse(chosen.last_seen)<120000;
+ var recentlySeen=chosen.last_seen&&Date.now()-Date.parse(chosen.last_seen)<300000;
  var details='FINAL PAIRING REVIEW\\n\\nScreen: '+chosen.label+'\\nLocation: '+(chosen.location||chosen.store_id)+'\\nOrientation: '+chosen.display+'\\nCode: '+code.slice(0,5)+' '+code.slice(5);
  if(recentlySeen)details+='\\n\\nWARNING: This screen is ONLINE. Approving a different TV may disconnect the current player.';
  details+='\\n\\nApprove pairing for this exact screen?';
