@@ -100,7 +100,7 @@
       stage.innerHTML = '<main id="slideshow" class="slideshow" aria-live="off"></main>';
     }
     var script = document.createElement('script');
-    script.src = 'cloud-player.js?v=20261124-diagnostics-v1';
+    script.src = 'cloud-player.js?v=20261128-emergency-v1';
     document.body.appendChild(script);
   }
   function setBookmarkUrl(screen) {
@@ -116,8 +116,7 @@
     var item = event.detail;
     if (!screenId || !item || !item.mediaId || !item.startedAt) return;
     lastDetected = new Date().toISOString();
-    pendingPlays.push(item);
-    if (pendingPlays.length > 100) pendingPlays.shift();
+    // Emergency mode: retain detection timestamp, suspend playback history writes.
     // Playback reports are sent with the scheduled heartbeat.
   });
   function startHeartbeat(token, screen) {
@@ -133,13 +132,13 @@
       inFlight = true;
       var play = pendingPlays.length ? pendingPlays[0] : null;
       try {
-        var body = {screenId:screenId, diagnostics:{version:'20261124-diagnostics-v1',browser:String(navigator.userAgent||'').slice(0,240),cacheAvailable:!!window.caches,pending:pendingPlays.length,lastDetected:lastDetected,lastReport:lastReport,lastError:lastError}};
+        var body = {screenId:screenId, diagnostics:{version:'20261128-emergency-v1',browser:String(navigator.userAgent||'').slice(0,240),cacheAvailable:!!window.caches,pending:pendingPlays.length,lastDetected:lastDetected,lastReport:lastReport,lastError:lastError}};
         if (play) body.playbackEvent = play;
         await request('heartbeat', body, token);
         window.dispatchEvent(new Event('roots-grill-player-resume'));
         if (play && pendingPlays[0] === play) {pendingPlays.shift();lastReport=new Date().toISOString();lastError=null;}
         overlay.hidden = true;
-        if (pendingPlays.length) setTimeout(beat, 1000);
+        // No event-drain requests in emergency mode.
       } catch (e) {
         lastError=String(e.message||e).slice(0,180);
         if(e.status===400 && play && pendingPlays[0]===play) pendingPlays.shift();
@@ -170,7 +169,7 @@
     }
     heartbeatNow = beat;
     beat();
-    heartbeatTimer = setInterval(beat, 30000);
+    heartbeatTimer = setInterval(beat, 120000);
   }
   async function pair() {
     if (working) return;
